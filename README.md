@@ -12,7 +12,9 @@ python3 -m venv .venv
 .venv/bin/python -m streamlit run app.py
 ```
 
-The dashboard runs offline with bundled NASA weather. Choose a weather scenario and year, then edit any of the comparison plans. Expand a plan's rainfall checks and calendar for dates and sources.
+The dashboard runs offline with bundled NASA weather. Choose weather and a year to inspect, then edit any of the comparison plans. Expand **See dates, rules and sources** on a plan for the calculation details and calendar.
+
+Each card shows its four-year crop sequence and highlights the selected year. The three main results are heavy rain without living cover, days passing planting checks, and the longest dry spell during sensitive growth. Planting checks combine low-rain windows with any required wait after ending a cover crop; each planting date counts once. Established hay shows **Not needed** for planting. Download all four years as a CSV with the main results and the separate rainfall and termination checks. In the CSV, `N/A` means a check does not apply and `Unavailable` means required information is missing. **Restore starting plans** restores the three starting rotations while keeping the selected weather.
 
 Run `python -m streamlit run timeline_app.py` to open the standalone calendar from [Issue #3](https://github.com/dkpgde/nasa-spaceapps/issues/3). Its default range is 2017–2020. Use the sidebar to change the starting crop, first year, and coverage dates. The timeline includes source links, a soil profile, a CSV export, and a selectable cereal rye recipe before soybean. Its rainfall-based fieldwork checks use the same shared crop and recipe calendars with bundled historical weather.
 

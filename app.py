@@ -1,7 +1,8 @@
+import pandas as pd
 import streamlit as st
 
 from catalog import SOIL
-from comparison import show_plan
+from comparison import reset_plans, show_plan
 from dashboard import masthead, monthly_chart, seasonal_chart
 from projection import FIRST_YEAR, GRID, LAST_YEAR, MODELS, PATHWAYS, SOURCE, load_projections
 from rainfall import RULES
@@ -99,7 +100,8 @@ historical = None
 projection = "Future projections"
 with st.container(border=True, key="comparison_controls"):
     weather_control, year_control, plan_control = st.columns([2, 1, 1])
-    scenario = weather_control.selectbox("Weather scenario", (*SCENARIOS, projection))
+    scenario = weather_control.selectbox("Weather to compare", (*SCENARIOS, projection),
+        help="Historical options use recorded NASA weather. Future projections use simulated weather. Every plan gets the same weather.")
     projected = scenario == projection
     try:
         if projected:
@@ -119,22 +121,48 @@ with st.container(border=True, key="comparison_controls"):
         st.error(f"The bundled weather could not be loaded. {error}")
         st.stop()
 
-    year = year_control.selectbox("Compare year", totals.index.tolist(), index=default_year, key=f"year-{scenario}")
+    year = year_control.selectbox("Year to inspect", totals.index.tolist(), index=default_year,
+        key=f"year-{scenario}", format_func=lambda y: f"Year {y - totals.index[0] + 1} · {y}",
+        help="Results below are for this one year. Crop sequences show the full four-year comparison.")
     slot_count = plan_control.selectbox("Plans to compare", (1, 2, 3), index=2)
     spring, summer = totals.loc[year, ["spring_mm", "summer_mm"]]
-    st.caption(f"{year} rainfall · {spring:,.0f} mm in spring · {summer:,.0f} mm in summer")
+    st.caption(f"{year} rainfall · {spring:,.0f} mm in March–May · {summer:,.0f} mm in June–August")
     if projected:
-        st.caption(f"Simulated weather for {FIRST_YEAR}–{LAST_YEAR}. Exact dates are uncertain.")
+        st.caption(f"Simulated weather for {FIRST_YEAR}–{LAST_YEAR}. This is a climate scenario, not a forecast for those dates.")
+    else:
+        st.caption({
+            "Typical": "Start here for a year with spring and summer rainfall near the historical middle.",
+            "Wet Spring": "Explore how a very wet spring affects planting and the timing of cover-crop removal.",
+            "Dry Summer": "Explore how a very dry summer overlaps with each crop's sensitive growth stages.",
+        }[scenario])
+        if year != historical.reference_year:
+            st.caption(f"The scenario's example year is {historical.reference_year}; you are viewing another year in the same weather block.")
 
 with st.container(key="comparison_heading"):
-    st.header(f"Rotation comparison for {year}", anchor=False)
+    st.header(f"Compare results for {year}", anchor=False)
+    st.caption(f"All plans use the same {daily.index[0].year}–{daily.index[-1].year} weather. "
+               "The highlighted crop is the one being compared. Shorter rotations repeat to fill four years.")
 
 span = Dates(daily.index[0].date(), daily.index[-1].date())
 history = Dates(weather.index[0].date(), weather.index[-1].date())
+comparison_rows = []
 with st.container(key="rotation_grid"):
     for slot, column in enumerate(st.columns(slot_count, gap="medium")):
         with column:
-            show_plan(slot, daily, span, history, year)
+            comparison_rows.extend(show_plan(slot, daily, span, history, year))
+
+with st.container(key="comparison_actions"):
+    download, reset = st.columns([2, 1])
+    export = pd.DataFrame(comparison_rows)
+    export.insert(0, "Weather scenario", scenario)
+    export.insert(1, "Weather source", f"{model} / {PATHWAYS[pathway]}" if projected else "NASA POWER / MERRA-2")
+    download.download_button(
+        "Download all four years (CSV)", export.to_csv(index=False).encode("utf-8-sig"),
+        f"rotationlab-{scenario.lower().replace(' ', '-')}-{span.start.year}-{span.end.year}.csv",
+        "text/csv", width="stretch",
+    )
+    reset.button("Restore starting plans", on_click=reset_plans, width="stretch")
+    st.caption("These are rainfall-based comparisons. Actual field access and crop stress also depend on soil and field conditions.")
 
 with st.expander("Weather charts and data", key="weather-details", on_change="rerun") as details:
     if details.open:

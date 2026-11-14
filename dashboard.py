@@ -16,7 +16,7 @@ def masthead():
     st.html(f"<style>{css}</style>")
     with st.container(key="masthead"):
         st.title("RotationLab", anchor=False)
-        st.write("Compare crop rotations using NASA weather for Boone County, Iowa.")
+        st.write("See how crop rotations change rain exposure and planting opportunities in Boone County, Iowa.")
 
 
 def chart_style(chart):
