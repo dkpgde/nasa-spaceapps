@@ -1,0 +1,100 @@
+:root {
+    --ink: #23382f;
+    --clover: #365c4b;
+    --muted: #52675c;
+    --rule: #d7e1d5;
+    --surface: #fafcf8;
+}
+
+.block-container {
+    max-width: 76rem;
+    padding: 3.25rem clamp(1rem, 4vw, 3rem) 2.5rem;
+}
+
+header[data-testid="stHeader"] { background: transparent; }
+
+.st-key-masthead { gap: .3rem; padding-bottom: .55rem; }
+.st-key-masthead h1 {
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    letter-spacing: -.045em;
+    line-height: 1.1;
+    padding: 0;
+}
+.st-key-masthead p { color: var(--muted); margin-bottom: 0; }
+
+/* Streamlit's usual markdown margins assume its default heading padding. */
+:is(.st-key-masthead, .st-key-comparison_heading, [class*="st-key-plan_title_"])
+    :is([data-testid="stMarkdownContainer"], [data-testid="stCaptionContainer"]) { margin-bottom: 0; }
+
+.st-key-comparison_heading h2 {
+    font-size: clamp(1.2rem, 2.2vw, 1.55rem);
+    letter-spacing: -.025em;
+    padding: .2rem 0 0;
+}
+
+.st-key-comparison_controls,
+[class*="st-key-plan_card_"] {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    padding: clamp(.85rem, 1.7vw, 1.25rem);
+}
+
+[class*="st-key-plan_card_"] { border-top: 3px solid var(--clover); }
+
+[class*="st-key-plan_title_"] { gap: .25rem; }
+[class*="st-key-plan_title_"] h3 {
+    font-size: 1.2rem;
+    letter-spacing: -.025em;
+    line-height: 1.2;
+    padding: 0;
+}
+[class*="st-key-plan_title_"] p { margin-bottom: 0; }
+
+.stApp [data-testid="stHtml"] dl.plan-results { margin: 0; padding: 0; }
+.plan-results > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: .7rem;
+    min-height: 3.05rem;
+    padding: .45rem 0;
+    border-top: 1px solid var(--rule);
+}
+.plan-results > div:last-child { border-bottom: 1px solid var(--rule); }
+.plan-results dt { color: var(--muted); font-size: .875rem; line-height: 1.3; }
+.plan-results dd { margin: 0; color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.st-key-rotation_grid > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:only-child {
+    max-width: 36rem;
+}
+
+.stApp :is(button, a, summary):focus-visible {
+    outline: 2px solid #456e8e;
+    outline-offset: 3px;
+}
+
+/* Use a one-column comparison before Streamlit's default column breakpoint. */
+@media (max-width: 850px) {
+    .st-key-rotation_grid > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+        flex-direction: column;
+    }
+    .st-key-rotation_grid > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+        width: 100%;
+        flex: 1 1 auto;
+    }
+}
+
+@media (max-width: 600px) {
+    .st-key-comparison_controls [data-testid="stHorizontalBlock"] { gap: .65rem; }
+    .st-key-comparison_controls [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(3)) {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .st-key-comparison_controls [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(3)) > [data-testid="stColumn"] {
+        width: 100%;
+    }
+    .st-key-comparison_controls [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {
+        grid-column: 1 / -1;
+    }
+    .plan-results > div { min-height: 2.7rem; }
+}

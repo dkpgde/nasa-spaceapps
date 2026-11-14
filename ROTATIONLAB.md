@@ -41,11 +41,20 @@ Use complete, consecutive four-year weather blocks so the full alfalfa rotation 
 
 Show all three checks in every scenario and emphasize the ones relevant to the selected weather. Use the same documented rainfall thresholds across plans. Label the results **planned living cover**, **rainfall-based fieldwork windows**, and **dry-spell exposure**. Soil texture is context for interpreting the results. Actual field access, crop water stress, and erosion depend on field conditions and management.
 
-### Run the weather screen
+### Run the comparison
 
 Install the dependencies with `python -m pip install -r requirements.txt`, then run
 `python -m streamlit run app.py`. The app loads the bundled CSV locally.
 Run `python weather.py` to refresh the cache from NASA POWER.
+
+For the two-minute demo, open on Typical and compare the cash crop and cover
+crop timelines. Switch to **Wet Spring** to see the 2013 heavy-rain counts and
+rye termination-to-planting pairs. Switch to **Dry Summer** to compare the
+2013 grain corn and oats sensitive windows. Open **Edit plan** on the third
+card, select the four-year Marsden rotation, and click **Load preset**. Select
+the fourth year to see established alfalfa hay. Expand **Rainfall checks and
+calendar** on any card for dates and sources. Weather data and assumptions are
+below the comparison.
 
 The request uses a representative point in the Marsden Farm experiment area
 (42.013628° N, 93.784149° W). The bundled response preserves NASA's header with
@@ -84,6 +93,18 @@ Downstream analysis can call `select_scenario(name, load_weather())` from
 
 The team can split into weather and rules, local crop and soil research, dashboard design, and demo storytelling. The finish line is a two-minute demo someone can run from a cold start with no farmer setup or live data calls.
 
-## Stretch goal
+## Future projections
 
-If the historical demo is ready early, replay a few individual NASA POWER climate-model sequences for 2027–2030 through the same comparison. Show how often each plan’s windows are squeezed across the runs. The dated sequences are simulated weather for stress testing. For a later feature about the coming season, NASA GEOS seasonal forecasts are the relevant product, and their local rainfall skill would need checking. The core demo requires no custom ML. [NASA POWER climate projections](https://power.larc.nasa.gov/docs/services/api/projection/) · [NASA GEOS seasonal predictions](https://gmao.gsfc.nasa.gov/seasonal-decadal-analysis_prediction/)
+Select **Future projections** under **Weather scenario** to replay daily weather for 2027–2030. Choose
+ACCESS-CM2 or MPI-ESM1-2-LR under SSP2-4.5 or SSP3-7.0. Every plan uses the
+same selected run. Changing models, pathways or weather modes preserves the
+rotation plans. These are simulated climate sequences for stress testing.
+Exact future dates are uncertain.
+
+The app bundles NASA NEX-GDDP-CMIP6 v2.0 daily point subsets from the NASA
+Center for Climate Simulation archive. The selected 0.25° grid cell is
+42.125° N, 93.875° W. Each run uses member `r1i1p1f1` and includes 2026
+for carryover context. The cache preserves UTC calendar dates and converts
+precipitation flux to mm/day and mean air temperature to °C. The app works
+offline. Run `python projection.py` to refresh the cache from NASA.
+[NASA data and access documentation](https://www.nccs.nasa.gov/data-collections/nex-gddp-cmip6/)

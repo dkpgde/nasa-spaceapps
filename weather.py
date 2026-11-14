@@ -91,9 +91,7 @@ def load_weather(path: Path = CACHE) -> pd.DataFrame:
     return daily.rename(columns={"PRECTOTCORR": "precipitation_mm", "T2M": "temperature_c"})
 
 
-def select_scenario(name: str, daily: pd.DataFrame) -> WeatherScenario:
-    """Select a four-year block from the validated records returned by load_weather."""
-    position, rule = SCENARIOS[name]
+def seasonal_totals(daily: pd.DataFrame) -> pd.DataFrame:
     rain = daily["precipitation_mm"]
     months = rain.index.month
     # Match the source precision so equal rainfall sums are ranked as ties.
@@ -101,7 +99,13 @@ def select_scenario(name: str, daily: pd.DataFrame) -> WeatherScenario:
     for season, month_range in {"spring_mm": range(3, 6), "summer_mm": range(6, 9)}.items():
         values = rain[months.isin(month_range)]
         seasonal_rain[season] = values.groupby(values.index.year).sum().round(2)
-    totals = pd.DataFrame(seasonal_rain).rename_axis("year")
+    return pd.DataFrame(seasonal_rain).rename_axis("year")
+
+
+def select_scenario(name: str, daily: pd.DataFrame) -> WeatherScenario:
+    """Select a four-year block from the validated records returned by load_weather."""
+    position, rule = SCENARIOS[name]
+    totals = seasonal_totals(daily)
     eligible = totals.loc[
         FIRST_YEAR + position - 1 : LAST_YEAR - (BLOCK_YEARS - position)
     ]

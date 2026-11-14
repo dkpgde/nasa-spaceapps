@@ -1,0 +1,13 @@
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"
+primaryColor = "#365c4b"
+backgroundColor = "#edf1ea"
+secondaryBackgroundColor = "#fafcf8"
+textColor = "#23382f"
+linkColor = "#365c4b"
+borderColor = "#d7e1d5"
+baseRadius = "small"
+font = "Segoe UI, system-ui, sans-serif"
