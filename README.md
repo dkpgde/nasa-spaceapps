@@ -1,10 +1,10 @@
 # RotationLab
 
-A Streamlit crop calendar for Boone County, Iowa. Implements [Issue #3](https://github.com/dkpgde/nasa-spaceapps/issues/3) independently of NASA weather retrieval. See [ROTATIONLAB.md](ROTATIONLAB.md) for the wider product specification.
+A Streamlit crop calendar for Boone County, Iowa. Includes a sourced timeline, cached historical weather, and rainfall-based fieldwork checks. See [ROTATIONLAB.md](ROTATIONLAB.md) for the wider product specification.
 
 ## Run locally
 
-Python 3.9 or later:
+Python 3.10 or later:
 
 ```sh
 python3 -m venv .venv
@@ -12,7 +12,7 @@ python3 -m venv .venv
 .venv/bin/python -m streamlit run app.py
 ```
 
-The application makes no external data requests. Its default range is January 1, 2017 through December 31, 2020; these are illustrative calendar years, not the weather scenario selections. Choose the first year and starting crop in the sidebar. Coverage dates allow inspection of partial ranges. Hover over timeline bars for the exact dates and their basis; expand the tables for source links, soil context and CSV export.
+The application makes no external data requests. Its default range is January 1, 2017 through December 31, 2020; these are illustrative calendar years, not the weather scenario selections. Choose the rotation example, first year, and starting crop in the sidebar. The weather selector runs fieldwork checks on its four-year cached block using the same rotation definitions. Coverage dates allow inspection of partial ranges. Hover over timeline bars for the exact dates and their basis; expand the tables for source links, soil context and CSV export.
 
 ## Shared representation
 
@@ -25,7 +25,7 @@ The application makes no external data requests. Its default range is January 1,
 
 `rules=None` or an unknown crop means unavailable. An empty tuple means a known valid calendar with no intervals. Set `unavailable_rules={"sensitive": "No sourced stage rule"}` for a partially known calendar; never substitute an empty tuple for a missing rule. Downstream calculations must check availability before interpreting interval counts. A valid window outside coverage returns an available, empty result.
 
-Explicit living-cover rules from the preceding phase may carry into the supplied range, but are clipped to available dates. The default annual corn–soybean plan has no winter living cover; residue is not counted as living cover. Synthetic overwinter rules are exercised only in tests, not presented as supported cover-crop recipes.
+Explicit living-cover rules from the preceding phase may carry into the supplied range, but are clipped to available dates. The baseline corn–soybean plan has no winter living cover. The cereal rye example applies the MCCC-103 recipe to grain corn → soybean transitions. The central Iowa October 28 cutoff is exclusive; the demo assumes next-day seeding after harvest and a seven-day establishment lag after the last eligible seeding date for the planned cover band. The spring search starts April 1 and checks the recipe’s gap of more than 10 days before soybean planting. Scout rye height and growth separately. Starting with soybean can show conditional rye carryover from the preceding grain-corn phase, clipped to the supplied coverage.
 
 ```python
 from datetime import date
