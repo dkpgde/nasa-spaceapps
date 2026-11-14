@@ -1,5 +1,10 @@
+"""Run with: streamlit run app.py. This slice needs no weather/network access."""
+from datetime import date, timedelta
+import altair as alt
 import pandas as pd
 import streamlit as st
+from rotationlab.catalog import load_catalog
+from rotationlab.model import RotationPlan, expand_rotation
 
 from fieldwork import RAIN_RULE, calculate_fieldwork
 from fieldwork_demo import demo_plans
@@ -14,13 +19,36 @@ def cached_weather() -> pd.DataFrame:
 
 st.set_page_config(page_title="RotationLab")
 st.title("RotationLab")
-name = st.radio("Weather scenario", SCENARIOS.keys(), horizontal=True)
-
-try:
-    scenario = select_scenario(name, cached_weather())
-except (OSError, ValueError) as error:
-    st.error(f"The bundled weather could not be loaded. {error}")
+st.caption("IOWA CROP PLANNING · SOURCED CALENDAR")
+st.header("See the season before comparing the weather")
+st.write("A four-year corn–soybean calendar with planned living cover and visible assumptions.")
+with st.sidebar:
+    st.header("Timeline settings")
+    start_year = int(st.number_input("First year", min_value=1901, max_value=2096, value=2017, step=1))
+    starting_crop = st.selectbox("Starting crop", ["Grain corn", "Soybean"])
+    start = st.date_input("Coverage starts", date(start_year, 1, 1),
+                          min_value=date(start_year, 1, 1), max_value=date(start_year + 3, 12, 31), key=f"start-{start_year}")
+    end = st.date_input("Coverage ends", date(start_year + 3, 12, 31),
+                        min_value=date(start_year, 1, 1), max_value=date(start_year + 3, 12, 31), key=f"end-{start_year}")
+    st.caption("Dates are supplied independently of NASA weather retrieval. Partial coverage clips the calendar.")
+if start > end or start.year != start_year:
+    st.error("Coverage must start in the first year and end on or after its start.")
     st.stop()
+plan = RotationPlan("Corn → soybean", ("grain_corn", "soybean"),
+                    0 if starting_crop == "Grain corn" else 1, ("marsden",))
+timeline = expand_rotation(plan, start, end, calendars)
+location, soil = data["location"], data["soil"]
+a, b, c = st.columns(3)
+a.metric("Representative location", "Boone County, IA")
+a.caption(f"Marsden study area · {location['latitude']:.4f}, {location['longitude']:.4f}")
+b.metric("Surface texture", soil["texture"])
+b.caption(soil["name"])
+c.metric("Available calendar coverage", f"{start.year}–{end.year}")
+c.caption(f"{start.isoformat()} → {end.isoformat()} · inclusive")
+st.subheader("Crop sequence")
+st.write(" → ".join(f"{y.year} {calendars[y.crop_id].name}" for y in timeline.years))
+st.caption(f"Preceding phase: {calendars[timeline.years[0].preceding_crop_id].name}. "
+           "This annual rotation has no overwinter living cover; preceding crop residue is not counted.")
 
 latitude, longitude = scenario.coordinates
 st.caption(f"{scenario.location} · {latitude:.4f}°, {longitude:.4f}°")
