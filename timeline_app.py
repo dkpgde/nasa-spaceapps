@@ -10,6 +10,7 @@ from fieldwork import RAIN_RULE, calculate_fieldwork
 from fieldwork_demo import corn_soybean_plans, timeline_operations
 from fieldwork_view import show_fieldwork
 from weather import SCENARIOS, load_weather, select_scenario
+from dashboard import load_styles
 
 
 @st.cache_data
@@ -18,7 +19,9 @@ def cached_weather() -> pd.DataFrame:
 
 
 st.set_page_config(page_title="RotationLab · Crop timeline", page_icon="🌱", layout="wide")
+load_styles()
 data, calendars = load_catalog()
+st.html('<div class="brand-eyebrow"><span class="brand-mark">↗</span> FIELD NOTES / IOWA <span class="source-badge">CROP CALENDAR</span></div>')
 st.title("RotationLab")
 st.caption("IOWA CROP PLANNING · SOURCED CALENDAR")
 st.header("See the season before comparing the weather")

@@ -98,3 +98,88 @@ header[data-testid="stHeader"] { background: transparent; }
     }
     .plan-results > div { min-height: 2.7rem; }
 }
+
+/* A warm, field-journal palette with clear controls and generous reading space. */
+:root {
+    --ink: #193d32;
+    --clover: #28654e;
+    --muted: #6c786d;
+    --rule: #e3e7dd;
+    --surface: #ffffff;
+}
+.stApp { background: #f5f5ee; color: var(--ink); }
+.block-container { max-width: 88rem; padding-top: 2.5rem; }
+.brand-eyebrow {
+    display: flex; align-items: center; gap: .75rem;
+    color: #4f6c59; font-size: .7rem; font-weight: 700;
+    letter-spacing: .14em; margin-bottom: .75rem;
+}
+.brand-mark {
+    display: inline-grid; place-items: center; width: 2rem; height: 2rem;
+    border-radius: .65rem; background: #214e3e; color: #f0e6a9;
+    font-size: 1.4rem; letter-spacing: 0;
+}
+.source-badge {
+    margin-left: auto; background: #e8eddf; color: #47614e;
+    padding: .4rem .65rem; border: 1px solid #d8e0ce; border-radius: 2rem;
+    font-size: .6rem; letter-spacing: .09em; white-space: nowrap;
+}
+.st-key-masthead {
+    background: linear-gradient(110deg, #e9eedf, #f5f5ee 80%);
+    border-bottom: 1px solid #d9e0d0;
+    padding: 1.75rem 2rem 2rem; margin-bottom: 1.25rem;
+    border-radius: 1.25rem 1.25rem 0 0;
+}
+.st-key-masthead h1 { font-size: clamp(2.8rem, 5.5vw, 4.75rem); font-weight: 650; letter-spacing: -.065em; }
+.st-key-masthead p { font-size: 1.05rem; }
+.st-key-masthead [data-testid="stCaptionContainer"] p { font-size: .83rem; margin-top: .4rem; }
+.st-key-comparison_controls {
+    border-radius: 1rem; padding: 1.25rem 1.5rem;
+    box-shadow: 0 4px 20px #23382f04;
+}
+[data-testid="stWidgetLabel"] p { color: #627263; font-size: .75rem; font-weight: 600; }
+[data-baseweb="select"] > div { border-radius: .65rem; background-color: #f8faf5; border-color: #dde5d7; }
+.st-key-comparison_heading { margin: .8rem 0 .3rem; }
+.st-key-comparison_heading h2 { font-size: 1.6rem; }
+[class*="st-key-plan_card_"] {
+    border: 1px solid #e0e5d9; border-top: 4px solid #357254;
+    border-radius: 1rem; padding: 1.35rem;
+    box-shadow: 0 6px 24px #23382f05;
+}
+.st-key-plan_card_1 { border-top-color: #c59a43; }
+.st-key-plan_card_2 { border-top-color: #859878; }
+[class*="st-key-plan_title_"] { min-height: 5rem; }
+[class*="st-key-plan_title_"] h3 { font-size: 1.35rem; }
+[class*="st-key-plan_title_"] [data-testid="stCaptionContainer"] p {
+    display: inline-block; padding: .25rem .6rem; background: #f0f4e9;
+    color: #4a684e; border-radius: 2rem; font-size: .72rem;
+}
+.plan-results > div { min-height: 4.3rem; border-top-color: #e9ede4; }
+.plan-results dt { max-width: 12rem; font-size: .78rem; }
+.plan-results dd { font-size: 1.9rem; font-weight: 600; letter-spacing: -.05em; }
+[data-testid="stPopover"] button {
+    border-color: #dce5d5; background: #f2f6ec; color: #315d43;
+    border-radius: .6rem; font-size: .8rem;
+}
+[data-testid="stExpander"] {
+    background: #ffffffb8; border-radius: .8rem;
+    border-color: #e0e5da; box-shadow: none;
+}
+[data-testid="stExpander"] summary { font-size: .82rem; color: #52705a; }
+[data-testid="stSidebar"] { background: #eaf0e2; border-right: 1px solid #d9e2d0; }
+[data-testid="stSidebar"] h2 { font-size: 1.25rem; }
+[data-testid="stMetric"] {
+    background: white; border: 1px solid #e0e5d9; border-radius: .9rem;
+    padding: 1.1rem; margin-top: .4rem;
+}
+[data-testid="stMetricValue"] { color: #244f3d; letter-spacing: -.04em; }
+[data-testid="stAlert"] { border-radius: .8rem; }
+.stApp h2, .stApp h3 { color: #244b3a; letter-spacing: -.035em; }
+@media (max-width: 600px) {
+    .block-container { padding: 1.8rem 1rem; }
+    .st-key-masthead { padding: 1.1rem; }
+    .brand-eyebrow { gap: .5rem; letter-spacing: .08em; font-size: .6rem; }
+    .source-badge { font-size: .5rem; padding: .35rem .45rem; }
+    .st-key-comparison_controls { padding: 1rem; }
+    [class*="st-key-plan_title_"] { min-height: auto; }
+}

@@ -11,12 +11,18 @@ ASSETS = Path(__file__).with_name("assets")
 SPRING, SUMMER = "#456E8E", "#A26A2C"
 
 
-def masthead():
+def load_styles():
     css = (ASSETS / "dashboard.css").read_text(encoding="utf-8")
     st.html(f"<style>{css}</style>")
+
+
+def masthead():
+    load_styles()
     with st.container(key="masthead"):
+        st.html('<div class="brand-eyebrow"><span class="brand-mark">↗</span> FIELD NOTES / IOWA <span class="source-badge">NASA POWER DATA</span></div>')
         st.title("RotationLab", anchor=False)
-        st.write("Compare crop rotations using NASA weather for Boone County, Iowa.")
+        st.write("Different rotations. The same weather. A clearer picture.")
+        st.caption("Explore crop cover, planting opportunities and dry spells in Boone County, Iowa.")
 
 
 def chart_style(chart):
