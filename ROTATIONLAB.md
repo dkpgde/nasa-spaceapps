@@ -41,6 +41,41 @@ Use complete, consecutive four-year weather blocks so the full alfalfa rotation 
 
 Show all three checks in every scenario and emphasize the ones relevant to the selected weather. Use the same documented rainfall thresholds across plans. Label the results **planned living cover**, **rainfall-based fieldwork windows**, and **dry-spell exposure**. Soil texture is context for interpreting the results. Actual field access, crop water stress, and erosion depend on field conditions and management.
 
+### Run the weather screen
+
+Install the dependencies with `python -m pip install -r requirements.txt`, then run
+`python -m streamlit run app.py`. The app loads the bundled CSV locally.
+Run `python weather.py` to refresh the cache from NASA POWER.
+
+The request uses a representative point in the Marsden Farm experiment area
+(42.013628° N, 93.784149° W). The bundled response preserves NASA's header with
+the coordinates, units, dataset, missing-value marker, and time standard. It
+contains corrected daily precipitation (mm/day) and mean 2 m air temperature
+(°C) from MERRA-2 in Local Solar Time. Calendar dates are derived from NASA's
+year and day of year. Both variables must be present on every date in the
+reference period, including February 29 in leap years.
+[Marsden Farm coordinates](https://www.tandfonline.com/doi/full/10.1080/21683565.2021.2019167) · [NASA POWER daily API](https://power.larc.nasa.gov/docs/services/api/temporal/daily/)
+
+The reference period is **1991–2020**, the standard 30-year U.S. climate normals
+period. RotationLab computes its own seasonal totals from NASA POWER records.
+Eligible reference years are 1992–2018 for Typical and Wet Spring and 1993–2019
+for Dry Summer, so each reference year fits its position in a complete four-year block.
+[NOAA U.S. Climate Normals](https://www.ncei.noaa.gov/products/land-based-station/us-climate-normals)
+
+- **Typical** uses year two. Rank March–May and June–August totals separately
+  across all 30 reference years, averaging tied ranks. Choose the eligible year
+  with the smallest maximum distance from the middle rank (15.5). Break ties
+  by total rank distance across both seasons, then by the earlier year.
+- **Wet Spring** uses year two and maximizes March–May rainfall among eligible years.
+  Break ties by the earlier year.
+- **Dry Summer** uses year three and minimizes June–August rainfall among eligible years.
+  Break ties by the earlier year.
+
+The wet spring and dry summer both occurred in 2013. They are placed at different
+positions in their respective weather blocks to align with the rotation years.
+Downstream analysis can call `select_scenario(name, load_weather())` from
+`weather.py` to use the same dated records and metadata as the screen.
+
 ## Build order for the weekend
 
 1. **Get one comparison working.** Fetch and save NASA weather for the demo location. Build the three default plans from crop calendars and cover crop rules, and pick the historical blocks. Check the dates and counts for one wet and one dry example.
