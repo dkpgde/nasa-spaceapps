@@ -8,6 +8,7 @@ import streamlit as st
 
 from catalog import CROPS, RECIPES
 from dashboard import chart_style
+from fieldwork import LOW_RAIN_DAYS
 from rainfall import analyze
 from rotation import DAY, DEFAULTS, EXAMPLES, Dates, Plan, expand
 
@@ -133,21 +134,22 @@ def show_outcome(year, result):
     st.markdown("**Rainfall-based fieldwork windows**")
     if year.planting is None:
         st.caption("Planting does not apply to an established hay year.")
-    for operation in result.fieldwork.operations:
-        st.write(f"{operation.event.label} · {date_range(operation.event.dates)}")
-        if operation.windows is None:
-            st.caption("Unavailable · incomplete rainfall.")
-        elif not operation.windows:
-            st.caption("No qualifying two-day windows.")
+    for check in result.fieldwork.operations:
+        operation = check.operation
+        st.write(f"{operation.label} · {date_range(operation.calendar)}")
+        if check.unavailable_reason:
+            st.caption(check.unavailable_reason)
+        elif not check.windows:
+            st.caption("No qualifying windows.")
         else:
-            st.caption(" · ".join(date_range(window) for window in operation.windows))
-    if year.minimum_gap is not None:
-        st.write(f"Terminate at least {year.minimum_gap} calendar days before planting.")
-        if result.fieldwork.pair_count is None:
-            st.caption("Spacing check unavailable.")
-        elif result.fieldwork.example_pair:
-            first, second = result.fieldwork.example_pair
-            st.caption(f"{result.fieldwork.pair_count} feasible pairs. Earliest pair · "
+            st.caption(" · ".join(date_range(Dates(window.start, window.operation_date)) for window in check.windows))
+    for check in result.fieldwork.rules:
+        st.write(f"Terminate at least {check.rule.minimum_days} calendar days before planting.")
+        if check.unavailable_reason:
+            st.caption(check.unavailable_reason)
+        elif check.feasible_dates:
+            first, second = check.feasible_dates[0]
+            st.caption(f"{len(check.feasible_dates)} feasible pairs. Earliest pair · "
                        f"{first:%b %d} → {second:%b %d} ({(second - first).days} days).")
         else:
             st.caption("No feasible pairs meet the required spacing.")
@@ -182,8 +184,8 @@ def show_plan(slot, daily, span, history, selected_year):
         dry_days = "Unavailable"
         if dry and dry.complete:
             dry_days = (dry.longest.end - dry.longest.start).days + 1 if dry.longest else 0
-        planting = next((op for op in result.fieldwork.operations if op.event == year.planting), None)
-        windows = "N/A" if planting is None else "Unavailable" if planting.windows is None else len(planting.windows)
+        planting = next((check for check in result.fieldwork.operations if check.operation.kind == "planting"), None)
+        windows = "N/A" if planting is None else "Unavailable" if planting.unavailable_reason else len(planting.windows)
         with summary:
             with st.container(key=f"plan_title_{slot}"):
                 st.subheader(PLAN_TITLES.get(label, f"Custom plan {slot + 1}"), anchor=False)
@@ -191,7 +193,7 @@ def show_plan(slot, daily, span, history, selected_year):
             st.html(f"""
                 <dl class="plan-results">
                     <div><dt>Heavy-rain days without living cover</dt><dd>{rain_count}</dd></div>
-                    <div><dt>Two-day planting windows</dt><dd>{windows}</dd></div>
+                    <div><dt>{LOW_RAIN_DAYS}-day planting windows</dt><dd>{windows}</dd></div>
                     <div><dt>Longest dry spell (days)</dt><dd>{dry_days}</dd></div>
                 </dl>
             """)

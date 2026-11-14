@@ -1,0 +1,207 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-11-14",
+  "sources": {
+    "isu_planting": {
+      "title": "Iowa State \u2014 Corn and Soybean Planting Date Considerations (2021)",
+      "url": "https://crops.extension.iastate.edu/post/corn-and-soybean-planting-date-considerations",
+      "basis": "Iowa guidance: corn April 11\u2013May 18; early soybean after April 11, finish by May 20. Suitable seedbed and soil temperature still govern planting."
+    },
+    "nass_dates": {
+      "title": "USDA NASS \u2014 Usual Planting and Harvesting Dates (2010), p. 39",
+      "url": "https://downloads.usda.library.cornell.edu/usda-esmis/files/vm40xr56k/dv13zw65p/w9505297d/planting-10-29-2010.pdf#page=39",
+      "basis": "Iowa usual harvest: grain corn September 21\u2013November 21; soybean September 21\u2013October 31. State-level historical ranges, not a forecast."
+    },
+    "isu_water": {
+      "title": "Iowa State \u2014 Crop water use or evapotranspiration (2000)",
+      "url": "https://crops.extension.iastate.edu/encyclopedia/crop-water-use-or-evapotranspiration",
+      "basis": "Corn water demand peaks in July\u2013August; tasseling through grain formation is sensitive. Soybean bloom and fruit set are sensitive. Calendar dates below are proxies, not observed stages."
+    },
+    "isu_soy_water": {
+      "title": "Iowa State \u2014 Fight to the Finish for Moisture (2023)",
+      "url": "https://crops.extension.iastate.edu/post/fight-finish-moisture",
+      "basis": "Soybean reproductive moisture demand extends into late July and August; exact proxy boundaries are demo assumptions."
+    },
+    "marsden": {
+      "title": "Iowa State \u2014 Marsden Long-Term Rotation Study",
+      "url": "https://inrc.cals.iastate.edu/project-location/marsden-long-term-rotation-study",
+      "basis": "Published two-, three-, and four-year rotation examples in Boone County."
+    },
+    "site_soils": {
+      "title": "Lazicki et al. (2016) \u2014 Marsden site description, section 2.1",
+      "url": "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0164209",
+      "basis": "Study coordinates 42\u00b001\u2032N, 93\u00b047\u2032W. Clarion and Nicollet loam and Webster silty clay loam occur at the site. These coordinates identify the study area, not a surveyed soil map unit."
+    },
+    "clarion": {
+      "title": "USDA NRCS \u2014 Official Clarion Series Description (2005)",
+      "url": "https://soilseries.sc.egov.usda.gov/OSD_Docs/C/CLARION.html",
+      "basis": "Representative series profile, not a point-specific SSURGO extraction: surface loam; very deep and moderately well drained. Typical pedon horizons below."
+    }
+  },
+  "location": {
+    "name": "Marsden Farm study area \u00b7 Boone County, Iowa",
+    "latitude": 42.016666666666666,
+    "longitude": -93.78333333333333,
+    "sources": [
+      "site_soils",
+      "marsden"
+    ]
+  },
+  "soil": {
+    "name": "Clarion loam \u2014 representative upland profile",
+    "texture": "Loam",
+    "drainage": "Moderately well drained",
+    "sources": [
+      "site_soils",
+      "clarion"
+    ],
+    "note": "Illustrative local series selection. Marsden also includes Nicollet and Webster soils. This is not a verified map-unit assignment at the representative coordinate. Soil texture supplies context only; no field access, erosion or water-stress model is applied.",
+    "horizons": [
+      {
+        "depth_cm": "0\u201318",
+        "horizon": "Ap",
+        "texture": "Loam"
+      },
+      {
+        "depth_cm": "18\u201346",
+        "horizon": "A",
+        "texture": "Loam"
+      },
+      {
+        "depth_cm": "46\u201391",
+        "horizon": "Bw",
+        "texture": "Loam"
+      },
+      {
+        "depth_cm": "91\u2013152",
+        "horizon": "C",
+        "texture": "Loam"
+      }
+    ]
+  },
+  "assumptions": [
+    "All dates and interval endpoints are inclusive. The same month/day rules repeat each year; weather does not shift this calendar.",
+    "Planned living cover is an assumed emergence-to-senescence interval, not measured canopy cover. No winter living cover is assigned to the corn\u2013soybean plan.",
+    "Termination is a known empty rule for these annual cash crops. Missing crop calendars are unavailable, not zero risk.",
+    "No weather is downloaded by this feature. A supplied date/coverage range clips intervals; no values are extrapolated outside it."
+  ],
+  "crops": [
+    {
+      "id": "grain_corn",
+      "name": "Grain corn",
+      "rules": [
+        {
+          "kind": "planting",
+          "label": "Planting window",
+          "start": "04-11",
+          "end": "05-18",
+          "sources": [
+            "isu_planting"
+          ],
+          "assumption": "Regional guidance, not a guaranteed fieldwork window."
+        },
+        {
+          "kind": "harvest",
+          "label": "Usual harvest window",
+          "start": "09-21",
+          "end": "11-21",
+          "sources": [
+            "nass_dates"
+          ],
+          "assumption": "Historical Iowa statewide begin/end dates; not a single-field operation duration."
+        },
+        {
+          "kind": "crop",
+          "label": "Illustrative crop season",
+          "start": "05-10",
+          "end": "09-15",
+          "sources": [
+            "isu_planting",
+            "nass_dates"
+          ],
+          "assumption": "Fixed demo proxy; not observed phenology. Emergence and senescence vary with cultivar, planting date and weather. Residue after senescence is not living cover."
+        },
+        {
+          "kind": "living_cover",
+          "label": "Planned living cover",
+          "start": "05-10",
+          "end": "09-15",
+          "sources": [
+            "isu_planting",
+            "nass_dates"
+          ],
+          "assumption": "Fixed demo proxy; not observed phenology. Emergence and senescence vary with cultivar, planting date and weather. Residue after senescence is not living cover."
+        },
+        {
+          "kind": "sensitive",
+          "label": "Sensitive growth window",
+          "start": "07-01",
+          "end": "08-31",
+          "sources": [
+            "isu_water"
+          ],
+          "assumption": "Fixed calendar proxy for reproductive moisture sensitivity; growth stages are documented, exact date boundaries are demo assumptions."
+        }
+      ]
+    },
+    {
+      "id": "soybean",
+      "name": "Soybean",
+      "rules": [
+        {
+          "kind": "planting",
+          "label": "Planting window",
+          "start": "04-11",
+          "end": "05-20",
+          "sources": [
+            "isu_planting"
+          ],
+          "assumption": "Soybean begins April 11 as a simplified early-planting boundary; actual guidance says after April 11. Soil conditions and frost risk govern operations."
+        },
+        {
+          "kind": "harvest",
+          "label": "Usual harvest window",
+          "start": "09-21",
+          "end": "10-31",
+          "sources": [
+            "nass_dates"
+          ],
+          "assumption": "Historical Iowa statewide begin/end dates; not a single-field operation duration."
+        },
+        {
+          "kind": "crop",
+          "label": "Illustrative crop season",
+          "start": "05-15",
+          "end": "09-15",
+          "sources": [
+            "isu_planting",
+            "nass_dates"
+          ],
+          "assumption": "Fixed demo proxy; not observed phenology. Emergence and senescence vary with cultivar, planting date and weather. Residue after senescence is not living cover."
+        },
+        {
+          "kind": "living_cover",
+          "label": "Planned living cover",
+          "start": "05-15",
+          "end": "09-15",
+          "sources": [
+            "isu_planting",
+            "nass_dates"
+          ],
+          "assumption": "Fixed demo proxy; not observed phenology. Emergence and senescence vary with cultivar, planting date and weather. Residue after senescence is not living cover."
+        },
+        {
+          "kind": "sensitive",
+          "label": "Sensitive growth window",
+          "start": "07-15",
+          "end": "08-31",
+          "sources": [
+            "isu_water",
+            "isu_soy_water"
+          ],
+          "assumption": "Fixed calendar proxy for reproductive moisture sensitivity; growth stages are documented, exact date boundaries are demo assumptions."
+        }
+      ]
+    }
+  ]
+}
