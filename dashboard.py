@@ -21,8 +21,8 @@ def masthead():
     with st.container(key="masthead"):
         st.html('<div class="brand-eyebrow"><span class="brand-mark">↗</span> FIELD NOTES / IOWA <span class="source-badge">NASA POWER DATA</span></div>')
         st.title("RotationLab", anchor=False)
-        st.write("Different rotations. The same weather. A clearer picture.")
-        st.caption("Explore crop cover, planting opportunities and dry spells in Boone County, Iowa.")
+        st.write("Which crop plan fits the weather?")
+        st.caption("Choose a weather scenario, compare your rotations, then inspect the dates behind each result. Boone County, Iowa.")
 
 
 def chart_style(chart):

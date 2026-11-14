@@ -98,6 +98,8 @@ masthead()
 historical = None
 projection = "Future projections"
 with st.container(border=True, key="comparison_controls"):
+    st.markdown("**01 / Choose the weather**")
+    st.caption("Every plan receives the same weather. Start with a historical scenario; future simulations are optional.")
     weather_control, year_control, plan_control = st.columns([2, 1, 1])
     scenario = weather_control.selectbox("Weather scenario", (*SCENARIOS, projection))
     projected = scenario == projection
@@ -123,11 +125,26 @@ with st.container(border=True, key="comparison_controls"):
     slot_count = plan_control.selectbox("Plans to compare", (1, 2, 3), index=2)
     spring, summer = totals.loc[year, ["spring_mm", "summer_mm"]]
     st.caption(f"{year} rainfall · {spring:,.0f} mm in spring · {summer:,.0f} mm in summer")
+    if historical:
+        st.caption(f"Weather block: {daily.index[0].year}–{daily.index[-1].year}. Results below describe {year}; change the year to inspect another phase of each rotation.")
     if projected:
         st.caption(f"Simulated weather for {FIRST_YEAR}–{LAST_YEAR}. Exact dates are uncertain.")
 
 with st.container(key="comparison_heading"):
+    st.markdown("**02 / Compare your crop plans**")
     st.header(f"Rotation comparison for {year}", anchor=False)
+    st.caption("Read across the same metric in each card. Each plan shows its crop for the selected year; different crops can have different sensitive periods.")
+    focus = {
+        "Typical": "Start here: compare the baseline calendar and all three rainfall checks.",
+        "Wet Spring": "Focus on spring operations: inspect planting windows and the rye termination gap in each plan’s details.",
+        "Dry Summer": "Focus on dry spells: inspect when each crop’s sensitive period overlaps a stretch of low rainfall.",
+    }
+    st.info(focus.get(scenario, "Stress-test the plans with simulated weather. These dated sequences are not a forecast."))
+    with st.expander("How to read the three metrics"):
+        st.markdown("**Uncovered heavy-rain days · fewer is preferable.** Counts heavy-rain days outside planned living cover; it does not estimate soil erosion.")
+        st.markdown("**Planting opportunities · more gives greater scheduling flexibility.** Counts overlapping low-rain windows, not independent workdays. Rainfall alone does not establish field access.")
+        st.markdown("**Longest sensitive-period dry spell · shorter means less exposure.** Uses each crop’s own sensitive dates; it does not predict water stress or yield.")
+        st.caption("These are separate trade-offs. No overall winner or combined score is assigned.")
 
 span = Dates(daily.index[0].date(), daily.index[-1].date())
 history = Dates(weather.index[0].date(), weather.index[-1].date())
@@ -136,6 +153,8 @@ with st.container(key="rotation_grid"):
         with column:
             show_plan(slot, daily, span, history, year)
 
+st.markdown("**03 / Check the evidence**")
+st.caption("Open a plan’s rainfall checks and calendar for its exact dates. Explore the shared weather and assumptions below.")
 with st.expander("Weather charts and data", key="weather-details", on_change="rerun") as details:
     if details.open:
         show_weather_details(daily, totals, year, historical)

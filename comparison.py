@@ -190,11 +190,12 @@ def show_plan(slot, daily, span, history, selected_year):
             with st.container(key=f"plan_title_{slot}"):
                 st.subheader(PLAN_TITLES.get(label, f"Custom plan {slot + 1}"), anchor=False)
                 st.caption(f"{selected_year} crop · {year.crop}")
+                st.caption("Rotation · " + " → ".join(CROPS[plan.crop_at(offset)].name for offset in range(len(plan.crops))))
             st.html(f"""
                 <dl class="plan-results">
-                    <div><dt>Heavy-rain days without living cover</dt><dd>{rain_count}</dd></div>
-                    <div><dt>{LOW_RAIN_DAYS}-day planting windows</dt><dd>{windows}</dd></div>
-                    <div><dt>Longest dry spell (days)</dt><dd>{dry_days}</dd></div>
+                    <div><dt>Uncovered heavy-rain days<small>Fewer days · less exposure</small></dt><dd>{rain_count}</dd></div>
+                    <div><dt>{LOW_RAIN_DAYS}-day planting windows<small>More windows · greater flexibility</small></dt><dd>{windows}</dd></div>
+                    <div><dt>Longest dry spell (days)<small>Within this crop’s sensitive period</small></dt><dd>{dry_days}</dd></div>
                 </dl>
             """)
         with st.expander("Rainfall checks and calendar", key=f"plan-details-{slot}", on_change="rerun") as details:
