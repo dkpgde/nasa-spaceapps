@@ -22,6 +22,11 @@
       "url": "https://crops.extension.iastate.edu/post/fight-finish-moisture",
       "basis": "Soybean reproductive moisture demand extends into late July and August; exact proxy boundaries are demo assumptions."
     },
+    "mccc_rye_soybean": {
+      "title": "Midwest Cover Crops Council and Iowa State — Post Corn, Going to Soybean: Use Cereal Rye (MCCC-103)",
+      "url": "https://www.midwestcovercrops.org/wp-content/uploads/2019/10/MCCC-103-IA-post-corn.pdf",
+      "basis": "Central Iowa seeding is recommended after grain corn harvest and before about October 28. Spring termination depends on rye height and active growth as well as the interval before soybean planting."
+    },
     "marsden": {
       "title": "Iowa State \u2014 Marsden Long-Term Rotation Study",
       "url": "https://inrc.cals.iastate.edu/project-location/marsden-long-term-rotation-study",
@@ -82,8 +87,22 @@
   "assumptions": [
     "All dates and interval endpoints are inclusive. The same month/day rules repeat each year; weather does not shift this calendar.",
     "Planned living cover is an assumed emergence-to-senescence interval, not measured canopy cover. No winter living cover is assigned to the corn\u2013soybean plan.",
-    "Termination is a known empty rule for these annual cash crops. Missing crop calendars are unavailable, not zero risk.",
+    "Termination applies to cover recipes; grain corn and soybean have no termination operation. Missing crop calendars are unavailable, not zero risk.",
     "No weather is downloaded by this feature. A supplied date/coverage range clips intervals; no values are extrapolated outside it."
+  ],
+  "cover_recipes": [
+    {
+      "crop_id": "cereal_rye",
+      "name": "Cereal rye",
+      "preceding_crop_id": "grain_corn",
+      "following_crop_id": "soybean",
+      "source": "mccc_rye_soybean",
+      "seed_before": "10-28",
+      "termination_from": "04-01",
+      "minimum_days_before_planting": 11,
+      "establishment_days": 7,
+      "termination_guidance": "Scout for actively growing rye at 6–12 inches and terminate earlier if it reaches that stage before the planting deadline. The date check uses the interval only."
+    }
   ],
   "crops": [
     {
@@ -151,12 +170,12 @@
         {
           "kind": "planting",
           "label": "Planting window",
-          "start": "04-11",
+          "start": "04-12",
           "end": "05-20",
           "sources": [
             "isu_planting"
           ],
-          "assumption": "Soybean begins April 11 as a simplified early-planting boundary; actual guidance says after April 11. Soil conditions and frost risk govern operations."
+          "assumption": "The demo starts on April 12, the first calendar date after April 11. Soil conditions and frost risk govern operations."
         },
         {
           "kind": "harvest",

@@ -1,7 +1,7 @@
 """Load the versioned, offline source catalog relative to this package."""
 import json
 from pathlib import Path
-from .model import CropCalendar, WindowRule
+from .model import CoverRecipe, CropCalendar, WindowRule
 
 
 def load_catalog():
@@ -13,3 +13,8 @@ def load_catalog():
         calendars[item["id"]] = CropCalendar(item["id"], item["name"], rules,
             item.get("unavailable_reason", ""), item.get("unavailable_rules", {}))
     return data, calendars
+
+
+def load_cover_recipes(data):
+    """Read the catalog's published transition recipes."""
+    return tuple(CoverRecipe(**item) for item in data["cover_recipes"])

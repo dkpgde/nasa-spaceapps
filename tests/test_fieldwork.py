@@ -86,8 +86,8 @@ def test_wet_spring_dates_and_pairs_against_raw_cached_rainfall():
     soybean = expected_dates(date(2013, 4, 12), date(2013, 5, 20))
     actual = {check.operation.id: check.windows for check in result.operations}
     assert termination and soybean
-    assert tuple(window.operation_date for window in actual["2013-rye"]) == termination
-    assert tuple(window.operation_date for window in actual["2013-soybean"]) == soybean
+    assert tuple(window.operation_date for window in actual["2013-cereal_rye-termination"]) == termination
+    assert tuple(window.operation_date for window in actual["2013-soybean-planting"]) == soybean
     pairs = tuple((t, s) for t, s in product(termination, soybean) if (s - t).days > 10)
     assert pairs and len(pairs) < len(termination) * len(soybean)
     rule = result.rules[0]

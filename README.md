@@ -14,7 +14,7 @@ python3 -m venv .venv
 
 The dashboard runs offline with bundled NASA weather. Choose a weather scenario and year, then edit any of the comparison plans. Expand a plan's rainfall checks and calendar for dates and sources.
 
-Run `python -m streamlit run timeline_app.py` to open the standalone calendar from [Issue #3](https://github.com/dkpgde/nasa-spaceapps/issues/3). Its default range is 2017–2020. Use the sidebar to change the starting crop, first year, and coverage dates. The timeline includes source links, a soil profile, and a CSV export.
+Run `python -m streamlit run timeline_app.py` to open the standalone calendar from [Issue #3](https://github.com/dkpgde/nasa-spaceapps/issues/3). Its default range is 2017–2020. Use the sidebar to change the starting crop, first year, and coverage dates. The timeline includes source links, a soil profile, a CSV export, and a selectable cereal rye recipe before soybean. Its rainfall-based fieldwork checks use the same shared crop and recipe calendars with bundled historical weather.
 
 ## Shared representation
 
@@ -27,7 +27,7 @@ Run `python -m streamlit run timeline_app.py` to open the standalone calendar fr
 
 `rules=None` or an unknown crop means unavailable. An empty tuple means a known valid calendar with no intervals. Set `unavailable_rules={"sensitive": "No sourced stage rule"}` for a partially known calendar; never substitute an empty tuple for a missing rule. Downstream calculations must check availability before interpreting interval counts. A valid window outside coverage returns an available, empty result.
 
-Explicit living-cover rules from the preceding phase may carry into the supplied range, but are clipped to available dates. The default annual corn–soybean plan has no winter living cover; residue is not counted as living cover. Synthetic overwinter rules are exercised only in tests, not presented as supported cover-crop recipes.
+Explicit living-cover rules from the preceding phase may carry into the supplied range, but are clipped to available dates. The baseline corn–soybean plan has no winter living cover. The cereal rye example applies the MCCC-103 recipe to grain corn → soybean transitions. The central Iowa October 28 cutoff is exclusive; the demo assumes next-day seeding after harvest and a seven-day establishment lag after the last eligible seeding date for the planned cover band. The spring search starts April 1 and checks the recipe’s gap of more than 10 days before soybean planting. Scout rye height and growth separately. Starting with soybean can show conditional rye carryover from the preceding grain-corn phase, clipped to the supplied coverage.
 
 ```python
 from datetime import date
