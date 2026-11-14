@@ -1,10 +1,10 @@
 # RotationLab
 
-A Streamlit crop calendar for Boone County, Iowa. Includes a sourced timeline, cached historical weather, and rainfall-based fieldwork checks. See [ROTATIONLAB.md](ROTATIONLAB.md) for the wider product specification.
+A Streamlit dashboard for comparing crop rotations in Boone County, Iowa. See [ROTATIONLAB.md](ROTATIONLAB.md) for the rotation presets, weather scenarios, and data sources.
 
 ## Run locally
 
-Python 3.10 or later:
+Python 3.11 or later:
 
 ```sh
 python3 -m venv .venv
@@ -12,7 +12,9 @@ python3 -m venv .venv
 .venv/bin/python -m streamlit run app.py
 ```
 
-The application makes no external data requests. Its default range is January 1, 2017 through December 31, 2020; these are illustrative calendar years, not the weather scenario selections. Choose the rotation example, first year, and starting crop in the sidebar. The weather selector runs fieldwork checks on its four-year cached block using the same rotation definitions. Coverage dates allow inspection of partial ranges. Hover over timeline bars for the exact dates and their basis; expand the tables for source links, soil context and CSV export.
+The dashboard runs offline with bundled NASA weather. Choose a weather scenario and year, then edit any of the comparison plans. Expand a plan's rainfall checks and calendar for dates and sources.
+
+Run `python -m streamlit run timeline_app.py` to open the standalone calendar from [Issue #3](https://github.com/dkpgde/nasa-spaceapps/issues/3). Its default range is 2017–2020. Use the sidebar to change the starting crop, first year, and coverage dates. The timeline includes source links, a soil profile, a CSV export, and a selectable cereal rye recipe before soybean. Its rainfall-based fieldwork checks use the same shared crop and recipe calendars with bundled historical weather.
 
 ## Shared representation
 

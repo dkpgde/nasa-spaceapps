@@ -96,17 +96,19 @@ def test_wet_spring_dates_and_pairs_against_raw_cached_rainfall():
 
 
 def test_streamlit_recalculates_fieldwork_when_scenario_changes():
-    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py", default_timeout=20)
+    app.session_state["plan-details-1"] = True
+    app.run()
     assert not app.exception
-    assert app.tabs[1].label == "Corn → soybean with cereal rye"
+    assert app.subheader[1].value == "Corn–soybean + rye"
 
-    app.radio[0].set_value("Wet Spring").run()
+    app.selectbox[0].select("Wet Spring").run()
     assert not app.exception
-    assert any("2013 · Terminate cereal rye" in expander.label for expander in app.expander)
+    assert any("Cereal rye termination" in item.value for item in app.markdown)
     assert any("11 calendar days" in item.value for item in app.markdown)
-    assert any("2013-04-25" in table.value.to_string() for table in app.table)
-    assert any("feasible date pairs" in item.value for item in app.markdown)
+    assert any("Apr 25" in item.value for item in app.caption)
+    assert any("feasible pairs" in item.value for item in app.caption)
 
-    app.radio[0].set_value("Dry Summer").run()
+    app.selectbox[0].select("Dry Summer").run()
     assert not app.exception
-    assert all("2013 · Terminate cereal rye" not in expander.label for expander in app.expander)
+    assert all("Cereal rye termination" not in item.value for item in app.markdown)

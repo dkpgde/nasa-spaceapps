@@ -1,7 +1,7 @@
 from pathlib import Path
 from streamlit.testing.v1 import AppTest
 
-APP = str(Path(__file__).resolve().parents[1] / 'app.py')
+APP = str(Path(__file__).resolve().parents[1] / 'timeline_app.py')
 
 
 def test_app_opens_offline_and_phase_control_changes_sequence():
