@@ -1,6 +1,9 @@
 import pandas as pd
 import streamlit as st
 
+from fieldwork import RAIN_RULE, calculate_fieldwork
+from fieldwork_demo import demo_plans
+from fieldwork_view import show_fieldwork
 from weather import SCENARIOS, load_weather, select_scenario
 
 
@@ -63,3 +66,14 @@ with st.expander("Daily weather records"):
     )
 
 st.caption(f"[NASA POWER daily data]({scenario.source_url}) · MERRA-2 · Local Solar Time")
+
+st.subheader("Rainfall-based fieldwork windows")
+st.caption(RAIN_RULE)
+st.caption(
+    "This demo uses rainfall as a screening rule. Field access also depends on soil, "
+    "drainage, and management."
+)
+plans = demo_plans(tuple(int(year) for year in totals.index))
+for tab, plan in zip(st.tabs([plan.name for plan in plans]), plans):
+    with tab:
+        show_fieldwork(calculate_fieldwork(plan, scenario.daily["precipitation_mm"]))
