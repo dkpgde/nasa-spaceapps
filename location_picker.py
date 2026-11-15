@@ -13,7 +13,7 @@ from locations import BOONE_COUNTY, BOUNDARY_SOURCE, SITES, coordinates, county_
 SELECTED_COUNTY = "comparison-county"
 MAP_REGION = "coverage-map-region"
 VIEWS = {
-    "World": (23.0, -76.0, 1.0),
+    "World": (33.0, -90.0, 2.25),
     "Lower 48": (38.6, -96.0, 3.05),
     "Alaska": (61.0, -153.0, 3.0),
     "Hawaii": (20.8, -157.0, 5.0),
