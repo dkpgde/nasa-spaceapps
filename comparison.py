@@ -289,22 +289,6 @@ def show_plan(slot, daily, span, history, selected_year, catalog, operation_weat
         year = calendar.years[selected_year - span.start.year]
         result = results[selected_year]
         title = plan_name(slot, example, plan, catalog)
-        values = summary_metrics(year, result)
-        planting_days = values["Days passing planting checks"]
-        planting_hint = "After three days of low rainfall."
-        if year.minimum_gap:
-            planting_hint = f"Includes the {year.minimum_gap}-day wait after ending the cover crop."
-        if year.planting is None:
-            planting_days, planting_hint = "Not needed", "The established hay crop does not need planting this year."
-        elif planting_days == "Unavailable":
-            planting_hint = "A required crop calendar, carryover rule, or weather record is missing."
-        metrics = (
-            ("rain", "☂︎", "Heavy rain without living cover", values["Heavy-rain days without living cover"],
-             f"At least {HEAVY_MM:g} mm of rain in a day."),
-            ("plant", "▦", "Days passing planting checks", planting_days, planting_hint),
-            ("dry", "☀︎", "Longest dry spell", values["Longest dry spell (days)"],
-             "During the crop’s sensitive growth stage."),
-        )
         with heading:
             st.subheader(title, anchor=False)
             st.caption(f"Growing in {selected_year} · {year.crop}")
@@ -316,13 +300,6 @@ def show_plan(slot, daily, span, history, selected_year, catalog, operation_weat
                 for offset, item in enumerate(calendar.years)
             )
             st.html(f'<ol class="crop-sequence" aria-label="Four-year crop sequence">{sequence}</ol>')
-            markup = "".join(
-                f'<div class="metric-{tone}"><dt><span class="metric-icon" aria-hidden="true">{icon}</span>'
-                f'<span>{name}<small>{hint}</small></span></dt><dd class="{"status" if isinstance(value, str) else ""}">'
-                f'{value}{("<small>day</small>" if value == 1 else "<small>days</small>") if isinstance(value, int) else ""}</dd></div>'
-                for tone, icon, name, value, hint in metrics
-            )
-            st.html(f'<dl class="plan-results">{markup}</dl>')
             if year.cover_unknown:
                 st.caption(" · ".join(year.notes))
             if year.sensitive is None:
@@ -340,10 +317,12 @@ def show_plan(slot, daily, span, history, selected_year, catalog, operation_weat
                     total = "unavailable" if any(days is None for days in counts) else sum(len(days) for days in counts)
                     st.caption(f"Four-year uncovered heavy-rain days · {total}. Preceding crop · {calendar.previous_crop}.")
                     render_timeline(calendar, selected_year, crops)
+        decision_slot = st.container()
     rotation, covers = describe_plan(plan, catalog)
-    return [
+    rows = [
         {"Plan": slot + 1, "Name": title, "Rotation": rotation, "Cover crops": "; ".join(covers) or "None",
          "Year": item.year, "Crop": item.crop, **summary_metrics(item, results[item.year]),
          "Calendar notes": " ".join(item.notes)}
         for item in calendar.years
     ]
+    return rows, decision_slot

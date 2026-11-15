@@ -26,15 +26,17 @@ def test_city_index_handles_regions_and_alternate_names():
 
 
 def test_search_updates_map_and_only_shows_weather_for_the_selected_county():
-    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py", default_timeout=15).run()
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py", default_timeout=15)
+    app.session_state["location-map-details"] = True
+    app.run()
     app.text_input(key="map-search-query").set_value("48.8534, 2.3488")
-    app.button[0].click().run()
+    next(button for button in app.button if button.label == "Find").click().run()
     assert not app.exception
     assert app.session_state["comparison-county"] is None
     assert any("The pin is on the map" in note.value for note in app.info)
 
     app.text_input(key="map-search-query").set_value("42.0167 -93.7833")
-    app.button[0].click().run()
+    next(button for button in app.button if button.label == "Find").click().run()
     assert not app.exception
     assert app.session_state["comparison-county"] == BOONE_COUNTY
     assert app.selectbox(key="rain-source").value == "NASA POWER"

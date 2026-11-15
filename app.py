@@ -8,6 +8,7 @@ from dashboard import (
     cached_grid_weather, cached_weather, choose_projection, masthead, monthly_chart, seasonal_chart, show_weather_sources,
     weather_sources_by_year,
 )
+from decision import show_plan_decisions
 from grid_weather import SOURCE as GRID_SOURCE, cell_name, coverage, grid_cell, grid_coordinates
 from impact import show_impact_explorer
 from location_picker import show_location_picker
@@ -178,6 +179,8 @@ plan_slots = range(len(DEFAULTS))
 selected_slots = [slot for slot in plan_slots if st.session_state.get(f"show-plan-{catalog.prefix}{slot}", True)]
 with st.container(border=True, key="comparison_controls"):
     st.header("Comparison settings", anchor="weather-settings")
+    st.caption("Choose two or three plans. Use the same weather for all of them.")
+    plan_choices = st.container(key="plan_choices")
     choices = (*SCENARIOS, projection) if iowa else tuple(SCENARIOS)
     scenario_key = "weather-choice-scenario" if iowa else "weather-choice-mead"
     custom_block = st.session_state.get(scenario_key, CUSTOM_YEARS) in (CUSTOM_YEARS, projection)
@@ -193,10 +196,11 @@ with st.container(border=True, key="comparison_controls"):
     projection_only = scenario == projection
     rain_source = POWER_LABEL
     if iowa and not projection_only:
-        rain_source = weather_control.selectbox(
-            "Historical precipitation", RAIN_SOURCES, key="rain-source",
-            help="Choose the daily rainfall product that runs the comparisons. Each product keeps its own daily time boundary.",
-        )
+        with weather_control.expander("Rainfall source"):
+            rain_source = st.selectbox(
+                "Historical precipitation", RAIN_SOURCES, key="rain-source",
+                help="Each source uses its own daily time boundary.",
+            )
     source_suffix = "" if rain_source == POWER_LABEL else f"-{rain_source}"
     start_year = None
     if scenario in (CUSTOM_YEARS, projection):
@@ -241,7 +245,6 @@ with st.container(border=True, key="comparison_controls"):
         key=f"year-{catalog.prefix}{scenario}-{totals.index[0]}{source_suffix}",
         format_func=lambda y: f"Year {y - totals.index[0] + 1} · {y}",
         help="Changes the plan cards and selected-year values. The impact chart can still show all four years.")
-    plan_choices = st.container(key="plan_choices")
     spring, summer = totals.loc[year, ["spring_mm", "summer_mm"]]
     st.html(f"""
         <dl class="season-strip" aria-label="{year} seasonal rainfall">
@@ -271,21 +274,22 @@ with st.container(border=True, key="comparison_controls"):
             st.caption(f"The scenario's example year is {historical.reference_year}; you are viewing another year in the same weather block.")
 
 with st.container(key="comparison_heading"):
-    st.header(f"Compare results for {year}", anchor=False)
-    st.caption(f"Shared weather window · {daily.index[0].year}–{daily.index[-1].year}. "
-               "The highlighted crop is the one shown in each plan’s results.")
-    if iowa:
-        st.html('<a class="observations-link" href="#site-observations">Explore Boone County observations ↓</a>')
+    st.header("Compare the plans", anchor="compare-rotations")
+    st.caption(f"Same weather for every plan · {daily.index[0].year}–{daily.index[-1].year}. "
+               f"The cards highlight the crop growing in {year}.")
 
 span = Dates(daily.index[0].date(), daily.index[-1].date())
 history = Dates(weather.index[0].date(), weather.index[-1].date())
 comparison_rows = []
-impact_panel = st.container()
+decision_slots = {}
+decision_panel = st.container()
 with st.container(key="rotation_grid"):
     if selected_slots:
         for slot, column in zip(selected_slots, st.columns(len(selected_slots), gap="medium")):
             with column:
-                comparison_rows.extend(show_plan(slot, daily, span, history, year, catalog, weather))
+                rows, decision_slot = show_plan(slot, daily, span, history, year, catalog, weather)
+                comparison_rows.extend(rows)
+                decision_slots[slot + 1] = decision_slot
     else:
         st.info("Select a rotation plan in Comparison settings to see results.")
 
@@ -297,8 +301,8 @@ if comparison_rows:
     export.insert(0, "Weather scenario", scenario)
     export.insert(1, "Weather source", export["Year"].map(sources_by_year))
     export.insert(2, "Location", SITES[county][0])
-    with impact_panel:
-        show_impact_explorer(export, year)
+    with decision_panel:
+        show_plan_decisions(comparison_rows, decision_slots, year, iowa=iowa)
 
 with st.container(key="comparison_actions"):
     download, reset = st.columns([2, 1])
@@ -312,7 +316,10 @@ with st.container(key="comparison_actions"):
         )
     reset.button("Restore starting plans", on_click=reset_plans, args=(catalog,),
                  icon=":material/restart_alt:", width="stretch")
-    st.caption("These are rainfall-based comparisons. Actual field access and crop stress also depend on soil and field conditions.")
+
+if comparison_rows:
+    with st.expander("Explore all indicators and charts"):
+        show_impact_explorer(export, year)
 
 with st.expander("Weather charts and data", key="weather-details", on_change="rerun") as details:
     if details.open:

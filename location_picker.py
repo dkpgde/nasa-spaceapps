@@ -173,37 +173,46 @@ def choose_site(county):
 
 
 def show_location_picker():
+    active = st.session_state.get(SELECTED_COUNTY, BOONE_COUNTY)
     with st.container(border=True, key="location_picker"):
         st.header("Choose a location", anchor="choose-location")
-        with st.form("location-search", border=False):
-            search, submit = st.columns([5, 1], vertical_alignment="bottom")
-            search.text_input("City or coordinates", placeholder="Ames, Iowa or 42.0167, -93.7833",
-                              max_chars=120, key=SEARCH_INPUT)
-            submit.form_submit_button("Find", type="primary", icon=":material/search:",
-                                      on_click=submit_search, width="stretch")
-        if error := st.session_state.get(SEARCH_ERROR):
-            st.warning(error)
-        if len(results := st.session_state.get(SEARCH_RESULTS, [])) > 1:
-            st.selectbox("Matching places", range(len(results)), format_func=lambda i: results[i].label,
-                         key=SEARCH_CHOICE, on_change=choose_search_result)
-        mode = st.radio("Map layer", (SATELLITE, COVERAGE), horizontal=True, key=MAP_STYLE)
-        st.caption("Drag to explore or use the zoom buttons. Select a U.S. county for weather or a study-site pin for rotations.")
-        if mode == COVERAGE:
-            region = st.radio("Map area", VIEWS, horizontal=True, key=MAP_REGION)
-            st.html(
-                '<div class="coverage-legend">'
-                '<span><i class="coverage-swatch"></i> NASA POWER weather</span>'
-                '<span><i class="crop-swatch"></i> Crop calendars</span></div>'
-            )
-        else:
-            region = SATELLITE
-        map_key = f"coverage-map-{region}"
-        map_slot = st.container()
+        st.caption("Pick a research site for rotation comparisons. Use the map to look up county weather.")
         with st.container(horizontal=True):
             for county, (name, _, _) in SITES.items():
-                st.button(name, on_click=choose_site, args=(county,))
+                st.button(name, type="primary" if county == active else "secondary",
+                          on_click=choose_site, args=(county,))
+        with st.expander("Find a city, coordinates, or county on the map", key="location-map-details",
+                         on_change="rerun") as details:
+            if details.open:
+                show_map(active)
+    return active
 
-    active = st.session_state.get(SELECTED_COUNTY, BOONE_COUNTY)
+
+def show_map(active):
+    with st.form("location-search", border=False):
+        search, submit = st.columns([5, 1], vertical_alignment="bottom")
+        search.text_input("City or coordinates", placeholder="Ames, Iowa or 42.0167, -93.7833",
+                          max_chars=120, key=SEARCH_INPUT)
+        submit.form_submit_button("Find", type="primary", icon=":material/search:",
+                                  on_click=submit_search, width="stretch")
+    if error := st.session_state.get(SEARCH_ERROR):
+        st.warning(error)
+    if len(results := st.session_state.get(SEARCH_RESULTS, [])) > 1:
+        st.selectbox("Matching places", range(len(results)), format_func=lambda i: results[i].label,
+                     key=SEARCH_CHOICE, on_change=choose_search_result)
+    mode = st.radio("Map layer", (SATELLITE, COVERAGE), horizontal=True, key=MAP_STYLE)
+    st.caption("Drag to explore or use the zoom buttons. Select a U.S. county for weather or a study-site pin for rotations.")
+    if mode == COVERAGE:
+        region = st.radio("Map area", VIEWS, horizontal=True, key=MAP_REGION)
+        st.html(
+            '<div class="coverage-legend">'
+            '<span><i class="coverage-swatch"></i> NASA POWER weather</span>'
+            '<span><i class="crop-swatch"></i> Crop calendars</span></div>'
+        )
+    else:
+        region = SATELLITE
+    map_key = f"coverage-map-{region}"
+    map_slot = st.container()
     focus = st.session_state.get(MAP_FOCUS)
     if mode == SATELLITE and focus and abs(focus.latitude) > MERCATOR_LIMIT:
         map_slot.info("Polar coordinates are visible in Weather coverage → World.")
@@ -244,4 +253,3 @@ def show_location_picker():
         )
     st.caption(f"Place names · [GeoNames]({GEONAMES_SOURCE}) · Boundaries · "
                f"[Natural Earth]({WORLD_SOURCE}) · [U.S. Census Bureau]({BOUNDARY_SOURCE})")
-    return active

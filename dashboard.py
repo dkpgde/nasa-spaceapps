@@ -81,8 +81,8 @@ def masthead():
             <div class="field-hero">
                 {image}
                 <div class="hero-copy">
-                    <h1>Explore weather and crop rotations</h1>
-                    <p>Explore NASA weather across the U.S. and compare rotations at research sites in Iowa and Nebraska.</p>
+                    <h1>Choose a crop rotation</h1>
+                    <p>Pick a site, compare rotations under the same weather, and see which plan fits your goal.</p>
                 </div>
             </div>
         """)
