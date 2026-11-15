@@ -135,7 +135,8 @@ def select_scenario(name: str, daily: pd.DataFrame, *, start_year: int | None = 
     position, rule = SCENARIOS[name]
     totals = seasonal_totals(daily)
     # Presets and rainfall medians use complete historical years only.
-    reference_first, reference_last = reference_period
+    reference_first = max(reference_period[0], daily.index[0].year)
+    reference_last = min(reference_period[1], daily.index[-1].year)
     reference_totals = totals.loc[reference_first:reference_last]
     eligible = reference_totals.loc[
         reference_first + position - 1 : reference_last - (BLOCK_YEARS - position)
@@ -166,7 +167,7 @@ def select_scenario(name: str, daily: pd.DataFrame, *, start_year: int | None = 
         daily=daily.loc[f"{first}-01-01":f"{last}-12-31"].copy(),
         seasonal_totals=totals.loc[first:last].copy(),
         historical_totals=reference_totals,
-        reference_period=reference_period,
+        reference_period=(reference_first, reference_last),
     )
 
 

@@ -1,5 +1,6 @@
 """Shared dashboard presentation for historical and projected weather."""
 
+from base64 import b64encode
 from pathlib import Path
 
 import altair as alt
@@ -12,7 +13,7 @@ from weather import FORECAST_LABEL, FORECAST_SOURCE, FORECAST_START, POWER_LABEL
 
 
 ASSETS = Path(__file__).with_name("assets")
-SPRING, SUMMER = "#456E8E", "#A26A2C"
+SPRING, SUMMER = "#2F7195", "#AC671E"
 
 
 @st.cache_data
@@ -47,6 +48,11 @@ def show_weather_sources(daily):
     sources = daily["source"]
     if sources.eq(POWER_LABEL).any():
         st.markdown("[NASA POWER daily data](https://power.larc.nasa.gov/docs/services/api/temporal/daily/) · Local Solar Time")
+    if sources.eq("GPM IMERG").any():
+        st.markdown("[NASA GPM IMERG](https://gpm.nasa.gov/data/imerg) via NASA POWER · 0.1° grid · UTC days")
+    if sources.eq("PRISM").any():
+        st.markdown("[PRISM Group, Oregon State University](https://prism.oregonstate.edu/), accessed November 15, 2026 "
+                    "via Iowa Environmental Mesonet · days ending around 12 UTC")
     if sources.eq(FORECAST_LABEL).any():
         st.markdown(
             f"[ECMWF SEAS5 via Open-Meteo]({FORECAST_SOURCE}) · {FORECAST_START} through 2026-12-31. "
@@ -60,19 +66,34 @@ def show_weather_sources(daily):
 
 
 def masthead():
-    css = (ASSETS / "dashboard.css").read_text(encoding="utf-8")
-    st.html(f"<style>{css}</style>")
+    st.html(ASSETS / "dashboard.css")
+    artwork = ASSETS / "iowa-orbit.webp"
+    image = ""
+    if artwork.exists():
+        encoded = b64encode(artwork.read_bytes()).decode("ascii")
+        image = f'<img class="hero-art" src="data:image/webp;base64,{encoded}" alt="">'
     with st.container(key="masthead"):
-        st.title("RotationLab", anchor=False)
-        st.write("Explore U.S. weather and compare crop rotations at research sites in Iowa and Nebraska.")
+        st.html(f"""
+            <div class="brand-bar">
+                <span class="brand-name"><span class="orbit-mark" aria-hidden="true"></span>RotationLab</span>
+                <a href="#choose-location">Choose a location <span aria-hidden="true">↓</span></a>
+            </div>
+            <div class="field-hero">
+                {image}
+                <div class="hero-copy">
+                    <h1>Explore weather and crop rotations</h1>
+                    <p>Explore NASA weather across the U.S. and compare rotations at research sites in Iowa and Nebraska.</p>
+                </div>
+            </div>
+        """)
 
 
 def chart_style(chart):
     return chart.configure_view(stroke=None).configure_axis(
-        labelColor="#43584F", titleColor="#23382F", gridColor="#DDE6DC",
+        labelColor="#4E625B", titleColor="#162F28", gridColor="#DFE8E4",
         domain=False, ticks=False, labelPadding=6, titlePadding=10,
-        labelFont="Segoe UI, sans-serif", titleFont="Segoe UI, sans-serif",
-    ).configure_legend(labelColor="#23382F", labelFont="Segoe UI, sans-serif")
+        labelFont="system-ui", titleFont="system-ui",
+    ).configure_legend(labelColor="#162F28", labelFont="system-ui")
 
 
 def seasonal_chart(totals: pd.DataFrame, selected_year: int):

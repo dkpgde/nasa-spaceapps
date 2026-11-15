@@ -1,0 +1,173 @@
+{
+  "coordinates": {
+    "latitude": 42.013628,
+    "longitude": -93.784149
+  },
+  "snapshot_date": "2026-11-15",
+  "soil": {
+    "mukey": "2922007",
+    "map_unit_name": "Canisteo clay loam, Bemis moraine, 0 to 2 percent slopes",
+    "survey_area": "IA015",
+    "drainage": "Poorly drained",
+    "hydrologic_group": "C/D",
+    "water_storage_mm_100cm": 179.60000000000002,
+    "slope_low_pct": 0.0,
+    "slope_high_pct": 2.0,
+    "dominant_component": {
+      "name": "Canisteo",
+      "share_pct": 85
+    },
+    "horizons": [
+      {
+        "Horizon": "Ap",
+        "Top (cm)": 0.0,
+        "Bottom (cm)": 20.0,
+        "Organic matter (%)": 7.0,
+        "Available water capacity (cm/cm)": 0.18,
+        "Saturated conductivity (µm/s)": 2.82,
+        "Sand (%)": 28.0,
+        "Clay (%)": 29.0
+      },
+      {
+        "Horizon": "A",
+        "Top (cm)": 20.0,
+        "Bottom (cm)": 41.0,
+        "Organic matter (%)": 5.0,
+        "Available water capacity (cm/cm)": 0.18,
+        "Saturated conductivity (µm/s)": 2.82,
+        "Sand (%)": 30.0,
+        "Clay (%)": 30.0
+      },
+      {
+        "Horizon": "AB",
+        "Top (cm)": 41.0,
+        "Bottom (cm)": 51.0,
+        "Organic matter (%)": 3.0,
+        "Available water capacity (cm/cm)": 0.18,
+        "Saturated conductivity (µm/s)": 2.82,
+        "Sand (%)": 30.0,
+        "Clay (%)": 30.0
+      },
+      {
+        "Horizon": "Bkg",
+        "Top (cm)": 51.0,
+        "Bottom (cm)": 91.0,
+        "Organic matter (%)": 1.5,
+        "Available water capacity (cm/cm)": 0.17,
+        "Saturated conductivity (µm/s)": 2.82,
+        "Sand (%)": 39.0,
+        "Clay (%)": 27.0
+      },
+      {
+        "Horizon": "Cg",
+        "Top (cm)": 91.0,
+        "Bottom (cm)": 200.0,
+        "Organic matter (%)": 0.25,
+        "Available water capacity (cm/cm)": 0.18,
+        "Saturated conductivity (µm/s)": 9.17,
+        "Sand (%)": 49.0,
+        "Clay (%)": 15.0
+      }
+    ]
+  },
+  "terrain": {
+    "elevation_m": 330.0,
+    "relief_m": 5.0
+  },
+  "smap_grid": {
+    "latitude": 42.04338070451041,
+    "longitude": -93.7811250575877
+  },
+  "cropland": [
+    {
+      "year": 2008,
+      "class_code": 1,
+      "class_name": "Corn"
+    },
+    {
+      "year": 2009,
+      "class_code": 176,
+      "class_name": "Grassland/Pasture"
+    },
+    {
+      "year": 2010,
+      "class_code": 176,
+      "class_name": "Grassland/Pasture"
+    },
+    {
+      "year": 2011,
+      "class_code": 5,
+      "class_name": "Soybeans"
+    },
+    {
+      "year": 2012,
+      "class_code": 176,
+      "class_name": "Grassland/Pasture"
+    },
+    {
+      "year": 2013,
+      "class_code": 176,
+      "class_name": "Grassland/Pasture"
+    },
+    {
+      "year": 2014,
+      "class_code": 176,
+      "class_name": "Grassland/Pasture"
+    },
+    {
+      "year": 2015,
+      "class_code": 176,
+      "class_name": "Grassland/Pasture"
+    },
+    {
+      "year": 2016,
+      "class_code": 176,
+      "class_name": "Grassland/Pasture"
+    },
+    {
+      "year": 2017,
+      "class_code": 176,
+      "class_name": "Grassland/Pasture"
+    },
+    {
+      "year": 2018,
+      "class_code": 176,
+      "class_name": "Grassland/Pasture"
+    },
+    {
+      "year": 2019,
+      "class_code": 176,
+      "class_name": "Grassland/Pasture"
+    },
+    {
+      "year": 2020,
+      "class_code": 176,
+      "class_name": "Grassland/Pasture"
+    },
+    {
+      "year": 2021,
+      "class_code": 176,
+      "class_name": "Grassland/Pasture"
+    },
+    {
+      "year": 2022,
+      "class_code": 176,
+      "class_name": "Grassland/Pasture"
+    },
+    {
+      "year": 2023,
+      "class_code": 176,
+      "class_name": "Grassland/Pasture"
+    },
+    {
+      "year": 2024,
+      "class_code": 176,
+      "class_name": "Grassland/Pasture"
+    },
+    {
+      "year": 2025,
+      "class_code": 176,
+      "class_name": "Grassland/Pasture"
+    }
+  ]
+}

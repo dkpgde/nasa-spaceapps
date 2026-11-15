@@ -90,7 +90,7 @@ def select_from_map(map_key):
 
 def show_location_picker():
     with st.container(border=True, key="location_picker"):
-        st.markdown("### Choose a location")
+        st.header("Choose a location", anchor="choose-location")
         st.caption("Drag and zoom to explore. Click a U.S. county for weather or a study-site pin for crop rotations.")
         region = st.radio("Map area", VIEWS, horizontal=True, key=MAP_REGION)
         map_key = f"coverage-map-{region}"

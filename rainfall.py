@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import date
 from itertools import groupby
+from operator import ge, le, lt
 
 import numpy as np
 import pandas as pd
@@ -14,6 +15,8 @@ from rotation import Calendar, CropYear, Dates
 
 HEAVY_MM = 25.0
 DRY_MM = 1.0
+HOT_C = 35.0
+LOW_MOISTURE_PERCENTILE = 20.0
 
 RULES = (
     f"**Heavy rain.** At least {HEAVY_MM:g} mm on a calendar day. Count a date once if it falls "
@@ -42,6 +45,11 @@ class YearResults:
     uncovered: tuple[tuple[date, float], ...] | None
     fieldwork: FieldworkResult
     dry_spell: DrySpell | None
+    living_cover_days: int | None
+    longest_cover_gap: int | None
+    freeze_planting_days: int | None = None
+    hot_sensitive_days: int | None = None
+    low_moisture_sensitive_days: int | None = None
 
 
 def rain_for(rain: pd.Series, dates: Dates) -> pd.Series:
@@ -84,6 +92,15 @@ def dry_spell(window: Dates, rain: pd.Series, span: Dates) -> DrySpell:
     return DrySpell(observed, observed == window and complete(period), longest)
 
 
+def exposure_days(values: pd.Series | None, event, span: Dates, test, threshold: float) -> int | None:
+    if values is None or event is None or span.overlap(event.dates) != event.dates:
+        return None
+    period = rain_for(values, event.dates)
+    if not np.isfinite(period.to_numpy(dtype=float)).all():
+        return None
+    return int(test(period, threshold).sum())
+
+
 def analyze(calendar: Calendar, daily: pd.DataFrame, *, operation_weather=None) -> dict[int, YearResults]:
     rain = rain_for(daily["precipitation_mm"], calendar.span)
     cover = [event.dates for event in calendar.timeline() if event.kind == "Living cover"]
@@ -91,16 +108,25 @@ def analyze(calendar: Calendar, daily: pd.DataFrame, *, operation_weather=None) 
     for year in calendar.years:
         year_span = calendar.span.overlap(Dates(date(year.year, 1, 1), date(year.year, 12, 31)))
         period = rain_for(rain, year_span)
-        uncovered = None
-        if not year.cover_unknown and complete(period):
-            outside = period.ge(HEAVY_MM)
+        uncovered = living_cover_days = longest_cover_gap = None
+        if not year.cover_unknown:
+            covered = pd.Series(False, index=period.index)
             for dates in cover:
                 if dates.overlap(year_span):
-                    outside.loc[pd.Timestamp(dates.start):pd.Timestamp(dates.end)] = False
-            uncovered = tuple((day.date(), float(value)) for day, value in period[outside].items())
+                    covered.loc[pd.Timestamp(dates.start):pd.Timestamp(dates.end)] = True
+            living_cover_days = int(covered.sum())
+            longest_cover_gap = max(((gap.end - gap.start).days + 1 for gap in runs(~covered)), default=0)
+            if complete(period):
+                outside = period.ge(HEAVY_MM) & ~covered
+                uncovered = tuple((day.date(), float(value)) for day, value in period[outside].items())
         exposure = dry_spell(year.sensitive.dates, rain, calendar.span) if year.sensitive else None
         operations_rain = rain
         if operation_weather is not None and year.planting and year.planting.dates.start < calendar.span.start:
             operations_rain = operation_weather["precipitation_mm"]
-        results[year.year] = YearResults(uncovered, fieldwork(year, operations_rain), exposure)
+        results[year.year] = YearResults(
+            uncovered, fieldwork(year, operations_rain), exposure, living_cover_days, longest_cover_gap,
+            exposure_days(daily.get("min_c"), year.planting, calendar.span, le, 0),
+            exposure_days(daily.get("max_c"), year.sensitive, calendar.span, ge, HOT_C),
+            exposure_days(daily.get("root_zone_percentile"), year.sensitive, calendar.span, lt, LOW_MOISTURE_PERCENTILE),
+        )
     return results

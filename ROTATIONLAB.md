@@ -117,3 +117,23 @@ for carryover context. The cache preserves UTC calendar dates and converts
 precipitation flux to mm/day and mean air temperature to °C. The app works
 offline. Run `python projection.py` to refresh the cache from NASA.
 [NASA data and access documentation](https://www.nccs.nasa.gov/data-collections/nex-gddp-cmip6/)
+
+## Boone County observations
+
+The offline snapshots were accessed on November 15, 2026, for the representative point at 42.013628° N, 93.784149° W. Field boundaries and management histories differ from this single point or satellite pixel.
+
+| Source | Bundled data | Use in RotationLab |
+| --- | --- | --- |
+| NASA POWER daily point API | Minimum and maximum air temperature, 2 m relative humidity, and all-sky downward shortwave radiation from 1991 through November 12, 2026, on the local solar day. The existing POWER cache provides corrected rainfall and mean air temperature. | Rainfall runs scenarios and the rainfall screens. Temperature extrema drive thermal exposure. Humidity and radiation are charted as context. |
+| GPM IMERG via NASA POWER daily point API | `IMERG_PRECTOT`, 0.1° grid, 2001–2025, UTC days. | Alternate rainfall input for the scenario and rainfall screens. |
+| PRISM Group, Oregon State University | 1991–2025 precipitation and daily extrema from the [Iowa Environmental Mesonet point API](https://mesonet.agron.iastate.edu/json/prism.py?help), converted from inches to millimetres and °F to °C. Daily values are valid around 12 UTC. [PRISM](https://prism.oregonstate.edu/), accessed November 15, 2026. | Alternate rainfall input. PRISM daily minima and maxima supply thermal exposure when PRISM is selected. |
+| CoCoRaHS | Daily gauge reports, metric export, at IA-SR-29 (~9.1 km from the site, starting September 2013) and IA-BN-13 (~10.4 km, starting April 2017) through 2025. Trace reports count as zero at gauge precision. Missing reports remain blank. [CoCoRaHS daily export](https://data.cocorahs.org/) | Show complete monthly gauge totals alongside the gridded products. The gauges provide nearby observations for context. |
+| NASA SMAP Level 4 via NASA POWER | Nearest daily grid cell, 42.04338° N, 93.78113° W, from March 31, 2015 through 2025. The point series contains surface (0–5 cm) and root-zone (0–100 cm) moisture and root-zone percentiles. | Plot site moisture and count days below the product’s 20th percentile within each crop’s sensitive window. Each plan sees the same gridded daily moisture series. |
+| USDA NRCS SSURGO | Soil Data Access mapped the WGS84 point to unit 2922007, Canisteo clay loam, Bemis moraine, 0–2 percent slopes. The bundle includes map unit drainage, hydrologic group, depth-weighted water storage, and representative horizon properties for the dominant Canisteo component. | Place results in the mapped soil context. Water storage and horizon properties are survey estimates. |
+| NASA SRTM v3 | Open Topo Data 1 arc-second point and four neighbors about 90 m away. | Elevation and sampled relief for terrain context. |
+| USDA NASS Cropland Data Layer | Annual image-service classifications at the representative point, 2008–2025. | Show classified land cover and annual changes for that pixel. |
+| Terra MODIS MOD13Q1 | Available ~250 m, 16-day composites from ORNL DAAC. Full composite sequences for 2010–2011, plus samples in early 2012 and winter and late summer 2024. NDVI scaled by 0.0001. The display uses pixel-reliability code 0. | Chart observed greenness in years with usable observations. Dates without observations stay blank. |
+
+The downloaded records are in `data/boone-county-site-weather.csv`, `data/boone-county-site-land.json`, and `data/boone-county-modis-ndvi.csv`. Batch dates for the rainfall products are comparable by nominal date, with distinct observation windows. The app keeps a single precipitation product throughout a historical comparison. The thermal indicators count days with Tmin ≤ 0 °C in the planting window and Tmax ≥ 35 °C in the crop-sensitive window. These are exposure thresholds. Any incomplete metric window is marked unavailable. Future climate simulations retain the original rainfall-based metrics.
+
+[POWER daily API](https://power.larc.nasa.gov/docs/services/api/temporal/daily/) · [POWER hydrology and SMAP](https://power.larc.nasa.gov/docs/methodology/data/sources_hydrology/) · [GPM IMERG](https://gpm.nasa.gov/data/imerg) · [USDA Soil Data Access](https://sdmdataaccess.nrcs.usda.gov/) · [SRTM point API](https://www.opentopodata.org/datasets/srtm/) · [USDA CDL releases](https://www.nass.usda.gov/Research_and_Science/Cropland/Release/) · [ORNL DAAC MODIS service](https://modis.ornl.gov/data/modis_webservice.html)

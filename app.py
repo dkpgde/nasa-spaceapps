@@ -3,22 +3,24 @@ from dataclasses import replace
 import pandas as pd
 import streamlit as st
 
-from catalog import SOIL
-from comparison import CATALOGS, reset_plans, show_plan
+from comparison import CATALOGS, plan_picker, reset_plans, show_plan
 from dashboard import (
     cached_grid_weather, cached_weather, choose_projection, masthead, monthly_chart, seasonal_chart, show_weather_sources,
     weather_sources_by_year,
 )
 from grid_weather import SOURCE as GRID_SOURCE, cell_name, coverage, grid_cell, grid_coordinates
+from impact import show_impact_explorer
 from location_picker import show_location_picker
 from locations import BOONE_COUNTY, SITES, coordinates, county_name
 from mead_catalog import SOIL_STUDY, STUDY
 from projection import CUSTOM_START_YEARS, FIRST_YEAR, PROJECTION_START_YEARS, custom_weather
 from rainfall import RULES
-from rotation import Dates
+from rotation import DEFAULTS, Dates
+from site_data import RAIN_SOURCES, comparison_conditions, historical_conditions, load_site_weather
+from site_view import show_site_observations
 from weather import (
-    BLOCK_YEARS, CUSTOM_YEARS, DEFAULT_START_YEAR, FIRST_YEAR as POWER_FIRST_YEAR, FORECAST_LABEL, FORECAST_START, LATITUDE,
-    LONGITUDE, POWER_LABEL, SCENARIOS, seasonal_totals, select_scenario,
+    BLOCK_YEARS, CUSTOM_YEARS, DEFAULT_START_YEAR, FIRST_YEAR as POWER_FIRST_YEAR, FORECAST_LABEL,
+    FORECAST_START, POWER_LABEL, SCENARIOS, seasonal_totals, select_scenario,
 )
 
 
@@ -61,13 +63,17 @@ def show_weather_details(daily, totals, year, historical):
                 "date": st.column_config.DateColumn("Date", format="YYYY-MM-DD"),
                 "precipitation_mm": st.column_config.NumberColumn("Precipitation (mm)", format="%.2f"),
                 "temperature_c": st.column_config.NumberColumn("Mean air temperature (°C)", format="%.2f"),
-                "source": "Weather source",
+                "min_c": st.column_config.NumberColumn("Minimum air temperature (°C)", format="%.2f"),
+                "max_c": st.column_config.NumberColumn("Maximum air temperature (°C)", format="%.2f"),
+                "root_zone_percentile": st.column_config.NumberColumn("SMAP root-zone percentile", format="%.1f"),
+                "source": "Precipitation source",
             },
         )
 
 
 def show_assumptions(iowa):
-    with st.expander("Rainfall rules, crop calendars, and soils"):
+    label = "Rainfall rules and crop calendars" if iowa else "Rainfall rules, crop calendars, and soils"
+    with st.expander(label):
         for rule in RULES:
             st.markdown(rule)
         st.markdown(
@@ -99,11 +105,6 @@ def show_assumptions(iowa):
             "incorporation in this demo, an Iowa State option alongside the study's fall incorporation. "
             "The final alfalfa hay year uses the study's late-November to early-December incorporation window."
         )
-        soil_label, soil_url = SOIL
-        st.markdown("**Boone County soils**")
-        st.write(f"Representative farm location · {LATITUDE:.4f}°, {LONGITUDE:.4f}°")
-        st.write("Marsden Farm soils are predominantly Clarion and Nicollet loams and Webster silty clay loam.")
-        st.markdown(f"[{soil_label}]({soil_url}) · [USDA Web Soil Survey](https://websoilsurvey.nrcs.usda.gov/app/)")
 
 
 def show_grid_source(cell):
@@ -140,25 +141,29 @@ try:
     grid = cached_grid_weather(cell) if cell_name(cell) in coverage()["cells"] else None
     if iowa:
         local_weather = cached_weather()
+        site_weather = load_site_weather()
 except (OSError, ValueError, KeyError) as error:
     st.error(f"The NASA POWER archive could not be loaded. {error}")
     st.stop()
-catalog = CATALOGS.get(county)
-if catalog is None or not iowa and grid is None:
-    explore_weather(county, cell, grid)
-    # Keep comparison settings while browsing a weather-only county.
-    for key in st.session_state:
-        if key == "plan-count" or key.startswith(("weather-choice-", "start-", "year-")):
+catalog = CATALOGS.get(county) if iowa or grid is not None else None
+# Keep settings for sites whose widgets are absent on this run.
+for key in st.session_state:
+    if key == "rain-source" or key.startswith(("weather-choice-", "start-", "year-", "show-plan-")):
+        belongs_to_mead = key == "weather-choice-mead" or key.startswith(("start-mead-", "year-mead-", "show-plan-mead-"))
+        if catalog is None or belongs_to_mead == iowa:
             st.session_state[key] = st.session_state[key]
+
+if catalog is None:
+    explore_weather(county, cell, grid)
     st.stop()
 
 st.markdown(f"**{SITES[county][0]}** · {len(catalog.crops)} crop calendars")
-show_grid_source(cell)
 if iowa:
     if grid is not None:
         local_weather = pd.concat([grid.loc[:"1990-12-31"], local_weather])
     reference = (POWER_FIRST_YEAR, local_weather.index[-1].year)
 else:
+    show_grid_source(cell)
     latest = grid.index[-1]
     last_complete_year = latest.year if (latest.month, latest.day) == (12, 31) else latest.year - 1
     local_weather = grid.loc[:str(last_complete_year)]
@@ -166,23 +171,43 @@ else:
 
 historical = None
 projection = "Future projections"
+plan_slots = range(len(DEFAULTS))
+selected_slots = [slot for slot in plan_slots if st.session_state.get(f"show-plan-{catalog.prefix}{slot}", True)]
 with st.container(border=True, key="comparison_controls"):
-    weather_control, year_control, plan_control = st.columns([2, 1, 1])
+    st.header("Comparison settings", anchor="weather-settings")
     choices = (*SCENARIOS, projection) if iowa else tuple(SCENARIOS)
-    scenario = weather_control.selectbox("Weather to compare", choices,
-        key="weather-choice-scenario" if iowa else "weather-choice-mead",
-        help="Presets use complete historical years. Iowa also has a seasonal forecast and future climate projections.")
+    scenario_key = "weather-choice-scenario" if iowa else "weather-choice-mead"
+    custom_block = st.session_state.get(scenario_key, CUSTOM_YEARS) in (CUSTOM_YEARS, projection)
+    with st.container(key="comparison_fields"):
+        if custom_block:
+            weather_control, start_control, year_control = st.columns([1.3, 1, 1])
+        else:
+            weather_control, year_control = st.columns([1.3, 1])
+    scenario = weather_control.selectbox(
+        "Weather to compare", choices, key=scenario_key,
+        help="Presets use complete historical years. Marsden also has a seasonal forecast and climate projections.",
+    )
     projection_only = scenario == projection
+    rain_source = POWER_LABEL
+    if iowa and not projection_only:
+        rain_source = weather_control.selectbox(
+            "Historical precipitation", RAIN_SOURCES, key="rain-source",
+            help="Choose the daily rainfall product that runs the comparisons. Each product keeps its own daily time boundary.",
+        )
+    source_suffix = "" if rain_source == POWER_LABEL else f"-{rain_source}"
     start_year = None
     if scenario in (CUSTOM_YEARS, projection):
         if projection_only:
             years = PROJECTION_START_YEARS
-        else:
+        elif rain_source == POWER_LABEL:
             stop = CUSTOM_START_YEARS.stop if iowa else reference[1] - BLOCK_YEARS + 2
             years = range(local_weather.index[0].year, stop)
-        start_year = weather_control.selectbox(
+        else:
+            rain = site_weather[RAIN_SOURCES[rain_source][0]].dropna()
+            years = range(rain.index[0].year, rain.index[-1].year - BLOCK_YEARS + 2)
+        start_year = start_control.selectbox(
             "Starting year", years, index=0 if projection_only else years.index(DEFAULT_START_YEAR),
-            key=f"start-{catalog.prefix}{scenario}",
+            key=f"start-{catalog.prefix}{scenario}{source_suffix}",
             help="This year and the next three years are used for every plan.",
         )
         end_year = start_year + BLOCK_YEARS - 1
@@ -194,8 +219,8 @@ with st.container(border=True, key="comparison_controls"):
             totals = seasonal_totals(daily)
             default_year = 0
         else:
-            weather = local_weather
-            if iowa and scenario == CUSTOM_YEARS:
+            weather = historical_conditions(local_weather, site_weather, rain_source) if iowa else local_weather
+            if iowa and scenario == CUSTOM_YEARS and rain_source == POWER_LABEL:
                 weather = custom_weather(weather, start_year, projected)
             historical = select_scenario(scenario, weather, start_year=start_year, reference_period=reference)
             if not iowa:
@@ -203,19 +228,32 @@ with st.container(border=True, key="comparison_controls"):
                                      source_url=GRID_SOURCE)
             daily, totals = historical.daily, historical.seasonal_totals
             default_year = historical.reference_position - 1
+        if iowa:
+            daily = comparison_conditions(daily, site_weather, rain_source)
     except (OSError, ValueError) as error:
         st.error(f"The bundled weather could not be loaded. {error}")
         st.stop()
 
     year = year_control.selectbox("Year to inspect", totals.index.tolist(), index=default_year,
-        key=f"year-{catalog.prefix}{scenario}-{totals.index[0]}", format_func=lambda y: f"Year {y - totals.index[0] + 1} · {y}",
-        help="Results below are for this one year. Crop sequences show the full four-year comparison.")
-    slot_count = plan_control.selectbox("Plans to compare", (1, 2, 3), index=2, key="plan-count")
+        key=f"year-{catalog.prefix}{scenario}-{totals.index[0]}{source_suffix}",
+        format_func=lambda y: f"Year {y - totals.index[0] + 1} · {y}",
+        help="Changes the plan cards and selected-year values. The impact chart can still show all four years.")
+    plan_choices = st.container(key="plan_choices")
     spring, summer = totals.loc[year, ["spring_mm", "summer_mm"]]
-    st.caption(f"{year} rainfall · {spring:,.0f} mm in March–May · {summer:,.0f} mm in June–August")
+    st.html(f"""
+        <dl class="season-strip" aria-label="{year} seasonal rainfall">
+            <div class="season-spring"><dt>Spring <span>Mar–May</span></dt><dd>{spring:,.0f} <span>mm</span></dd></div>
+            <div class="season-summer"><dt>Summer <span>Jun–Aug</span></dt><dd>{summer:,.0f} <span>mm</span></dd></div>
+        </dl>
+    """)
     sources_by_year = weather_sources_by_year(daily)
-    if sources_by_year.loc[year] != POWER_LABEL:
+    if rain_source != POWER_LABEL:
+        rain_day = RAIN_SOURCES[rain_source][1]
+        st.caption(f"{rain_source} rainfall · {rain_day}. The weather chart’s mean air temperature still comes from NASA POWER.")
+    elif sources_by_year.loc[year] != POWER_LABEL:
         st.caption(f"{year} weather · {sources_by_year.loc[year]}")
+    if iowa and daily.index[0].year < POWER_FIRST_YEAR:
+        show_grid_source(cell)
     if daily["source"].eq(FORECAST_LABEL).any():
         st.caption(f"2026 includes a seasonal forecast from {FORECAST_START} through December 31.")
     if projected is not None:
@@ -231,33 +269,51 @@ with st.container(border=True, key="comparison_controls"):
 
 with st.container(key="comparison_heading"):
     st.header(f"Compare results for {year}", anchor=False)
-    st.caption(f"All plans use the same {daily.index[0].year}–{daily.index[-1].year} weather. "
-               "The highlighted crop is the one being compared. Shorter rotations repeat to fill four years.")
+    st.caption(f"Shared weather window · {daily.index[0].year}–{daily.index[-1].year}. "
+               "The highlighted crop is the one shown in each plan’s results.")
+    if iowa:
+        st.html('<a class="observations-link" href="#site-observations">Explore Boone County observations ↓</a>')
 
 span = Dates(daily.index[0].date(), daily.index[-1].date())
 history = Dates(weather.index[0].date(), weather.index[-1].date())
 comparison_rows = []
+impact_panel = st.container()
 with st.container(key="rotation_grid"):
-    for slot, column in enumerate(st.columns(slot_count, gap="medium")):
-        with column:
-            comparison_rows.extend(show_plan(slot, daily, span, history, year, catalog, weather))
+    if selected_slots:
+        for slot, column in zip(selected_slots, st.columns(len(selected_slots), gap="medium")):
+            with column:
+                comparison_rows.extend(show_plan(slot, daily, span, history, year, catalog, weather))
+    else:
+        st.info("Select a rotation plan in Comparison settings to see results.")
 
-with st.container(key="comparison_actions"):
-    download, reset = st.columns([2, 1])
+with plan_choices:
+    plan_picker(plan_slots, catalog)
+
+if comparison_rows:
     export = pd.DataFrame(comparison_rows)
     export.insert(0, "Weather scenario", scenario)
     export.insert(1, "Weather source", export["Year"].map(sources_by_year))
     export.insert(2, "Location", SITES[county][0])
-    location_slug = "" if iowa else "mead-"
-    download.download_button(
-        "Download all four years (CSV)", export.to_csv(index=False).encode("utf-8-sig"),
-        f"rotationlab-{location_slug}{scenario.lower().replace(' ', '-')}-{span.start.year}-{span.end.year}.csv",
-        "text/csv", width="stretch",
-    )
-    reset.button("Restore starting plans", on_click=reset_plans, args=(catalog,), width="stretch")
+    with impact_panel:
+        show_impact_explorer(export, year)
+
+with st.container(key="comparison_actions"):
+    download, reset = st.columns([2, 1])
+    if comparison_rows:
+        location_slug = "" if iowa else "mead-"
+        scenario_slug = scenario.lower().replace(" ", "-")
+        download.download_button(
+            "Download all four years (CSV)", export.to_csv(index=False).encode("utf-8-sig"),
+            f"rotationlab-{location_slug}{scenario_slug}-{span.start.year}-{span.end.year}.csv",
+            "text/csv", type="primary", icon=":material/download:", width="stretch",
+        )
+    reset.button("Restore starting plans", on_click=reset_plans, args=(catalog,),
+                 icon=":material/restart_alt:", width="stretch")
     st.caption("These are rainfall-based comparisons. Actual field access and crop stress also depend on soil and field conditions.")
 
 with st.expander("Weather charts and data", key="weather-details", on_change="rerun") as details:
     if details.open:
         show_weather_details(daily, totals, year, historical)
+if iowa:
+    show_site_observations(site_weather, year)
 show_assumptions(iowa)

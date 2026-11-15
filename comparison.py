@@ -48,6 +48,40 @@ def date_range(dates: Dates) -> str:
     return f"{dates.start:%b %d} – {dates.end:%b %d}"
 
 
+def stored_plan(slot: int, catalog: PlanCatalog) -> tuple[str, Plan]:
+    default = tuple(catalog.examples)[slot]
+    return st.session_state.get(f"{catalog.prefix}plan-{slot}", (default, catalog.examples[default]))
+
+
+def plan_name(slot: int, example: str, plan: Plan, catalog: PlanCatalog) -> str:
+    if plan == catalog.examples[example]:
+        return catalog.titles[example]
+    return f"Custom plan {slot + 1}"
+
+
+def describe_plan(plan: Plan, catalog: PlanCatalog) -> tuple[str, list[str]]:
+    crops = catalog.crops
+    rotation = " → ".join(crops[plan.crop_at(offset)].name for offset in range(len(plan.crops)))
+    covers = [
+        f"{recipe.name} after {crops[plan.crop_at(offset)].name} (rotation year {offset + 1})"
+        for offset in range(len(plan.crops)) if (recipe := plan.recipe_at(offset, catalog.recipes))
+    ]
+    return rotation, covers
+
+
+def plan_picker(slots: range, catalog: PlanCatalog):
+    st.html('<p class="plan-picker-label">Rotation plans</p>')
+    for slot, column in zip(slots, st.columns(len(slots))):
+        example, plan = stored_plan(slot, catalog)
+        rotation, covers = describe_plan(plan, catalog)
+        with column, st.container(key=f"plan_choice_{slot}"):
+            key = f"show-plan-{catalog.prefix}{slot}"
+            st.checkbox(plan_name(slot, example, plan, catalog), value=True, key=key)
+            st.caption(rotation)
+            if covers:
+                st.caption(" · ".join(covers))
+
+
 def load_example(slot: int, prefix: str, catalog: PlanCatalog):
     example = st.session_state[f"{prefix}example"]
     st.session_state[f"{catalog.prefix}plan-{slot}"] = example, catalog.examples[example]
@@ -67,9 +101,8 @@ def edit_plan(slot: int, catalog: PlanCatalog) -> tuple[str, Plan]:
     prefix = f"{catalog.prefix}slot-{slot}-"
     storage = f"{catalog.prefix}plan-{slot}"
     options, recipes, examples = catalog.crops, catalog.recipes, catalog.examples
-    default = tuple(examples)[slot]
-    example, plan = st.session_state.get(storage, (default, examples[default]))
-    with st.popover("Edit plan", width="stretch", key=f"{prefix}editor"):
+    example, plan = stored_plan(slot, catalog)
+    with st.popover("Edit plan", icon=":material/tune:", width="stretch", key=f"{prefix}editor"):
         st.session_state.setdefault(f"{prefix}example", example)
         st.selectbox("Start from an example", examples, key=f"{prefix}example")
         st.button("Use this example", key=f"{prefix}load", on_click=load_example, args=(slot, prefix, catalog))
@@ -117,7 +150,7 @@ def edit_plan(slot: int, catalog: PlanCatalog) -> tuple[str, Plan]:
                 st.warning(f"Removed the cover after phase {phase + 1} with that crop year.")
     edited = Plan(crops, tuple(covers), start)
     st.session_state[storage] = example, edited
-    return (example if edited == examples[example] else "Custom rotation"), edited
+    return example, edited
 
 
 def render_timeline(calendar, selected_year, crops):
@@ -180,13 +213,14 @@ def show_outcome(year, result):
         else:
             st.caption(" · ".join(date_range(Dates(window.start, window.operation_date)) for window in check.windows))
     for check in result.fieldwork.rules:
-        st.write(f"End the cover crop at least {check.rule.minimum_days} days before planting the next crop.")
+        st.write(f"Allow at least {check.rule.minimum_days} calendar days between ending the cover crop and planting.")
         if check.unavailable_reason:
             st.caption(check.unavailable_reason)
         elif check.feasible_dates:
             first, second = check.feasible_dates[0]
             count = len({later for _, later in check.feasible_dates})
-            st.caption(f"{count} planting dates meet both checks. Example: end the cover crop on "
+            st.caption(f"{count} planting dates meet both checks across {len(check.feasible_dates)} feasible pairs. "
+                       "For example, end the cover crop on "
                        f"{first:%b %d}, then plant on {second:%b %d} ({(second - first).days} days later).")
         else:
             st.caption("No feasible pairs meet the required spacing.")
@@ -231,23 +265,33 @@ def summary_metrics(year, result):
         f"{LOW_RAIN_DAYS}-day planting windows": windows,
         "Planting dates meeting termination gap": paired_dates,
         "Longest dry spell (days)": dry_days,
+        "Days with living cover": "Unavailable" if result.living_cover_days is None else result.living_cover_days,
+        "Longest stretch without living cover": "Unavailable" if result.longest_cover_gap is None else result.longest_cover_gap,
+        "Freezing days in planting window": (
+            "N/A" if year.planting is None else "Unavailable" if result.freeze_planting_days is None
+            else result.freeze_planting_days
+        ),
+        "Hot days during sensitive growth": "Unavailable" if result.hot_sensitive_days is None else result.hot_sensitive_days,
+        "Low root-zone moisture days during sensitive growth": (
+            "Unavailable" if result.low_moisture_sensitive_days is None else result.low_moisture_sensitive_days
+        ),
     }
 
 
 def show_plan(slot, daily, span, history, selected_year, catalog, operation_weather):
     with st.container(border=True, key=f"plan_card_{slot}"):
-        # Leave space above the editor so the summary reflects edits from this rerun.
-        summary = st.container()
-        label, plan = edit_plan(slot, catalog)
+        # Reserve space for the title so it reflects edits from this rerun.
+        heading = st.container(key=f"plan_title_{slot}")
+        example, plan = edit_plan(slot, catalog)
         crops, recipes = catalog.crops, catalog.recipes
         calendar = expand(plan, span, history, crops=crops, recipes=recipes)
         results = analyze(calendar, daily, operation_weather=operation_weather)
         year = calendar.years[selected_year - span.start.year]
         result = results[selected_year]
-        title = catalog.titles.get(label, f"Custom plan {slot + 1}")
+        title = plan_name(slot, example, plan, catalog)
         values = summary_metrics(year, result)
         planting_days = values["Days passing planting checks"]
-        planting_hint = "More dates give you more planting options."
+        planting_hint = "After three days of low rainfall."
         if year.minimum_gap:
             planting_hint = f"Includes the {year.minimum_gap}-day wait after ending the cover crop."
         if year.planting is None:
@@ -255,16 +299,16 @@ def show_plan(slot, daily, span, history, selected_year, catalog, operation_weat
         elif planting_days == "Unavailable":
             planting_hint = "A required crop calendar, carryover rule, or weather record is missing."
         metrics = (
-            ("Heavy rain without living cover", values["Heavy-rain days without living cover"],
-             "Counts heavy rain while no living plants are planned."),
-            ("Days passing planting checks", planting_days, planting_hint),
-            ("Longest dry spell", values["Longest dry spell (days)"],
-             "Days in a row with little rain during this crop's sensitive growth stage."),
+            ("rain", "☂︎", "Heavy rain without living cover", values["Heavy-rain days without living cover"],
+             f"At least {HEAVY_MM:g} mm of rain in a day."),
+            ("plant", "▦", "Days passing planting checks", planting_days, planting_hint),
+            ("dry", "☀︎", "Longest dry spell", values["Longest dry spell (days)"],
+             "During the crop’s sensitive growth stage."),
         )
-        with summary:
-            with st.container(key=f"plan_title_{slot}"):
-                st.subheader(title, anchor=False)
-                st.caption(f"Growing in {selected_year}: {year.crop}")
+        with heading:
+            st.subheader(title, anchor=False)
+            st.caption(f"Growing in {selected_year} · {year.crop}")
+        with st.container(key=f"plan_summary_{slot}"):
             sequence = "".join(
                 f'<li class="{"selected" if item.year == selected_year else ""}">'
                 f'<span>Year {offset + 1} · {item.year}{" · selected" if item.year == selected_year else ""}</span>'
@@ -273,9 +317,10 @@ def show_plan(slot, daily, span, history, selected_year, catalog, operation_weat
             )
             st.html(f'<ol class="crop-sequence" aria-label="Four-year crop sequence">{sequence}</ol>')
             markup = "".join(
-                f'<div><dt>{name}<small>{hint}</small></dt><dd class="{"status" if isinstance(value, str) else ""}">'
+                f'<div class="metric-{tone}"><dt><span class="metric-icon" aria-hidden="true">{icon}</span>'
+                f'<span>{name}<small>{hint}</small></span></dt><dd class="{"status" if isinstance(value, str) else ""}">'
                 f'{value}{("<small>day</small>" if value == 1 else "<small>days</small>") if isinstance(value, int) else ""}</dd></div>'
-                for name, value, hint in metrics
+                for tone, icon, name, value, hint in metrics
             )
             st.html(f'<dl class="plan-results">{markup}</dl>')
             if year.cover_unknown:
@@ -295,13 +340,9 @@ def show_plan(slot, daily, span, history, selected_year, catalog, operation_weat
                     total = "unavailable" if any(days is None for days in counts) else sum(len(days) for days in counts)
                     st.caption(f"Four-year uncovered heavy-rain days · {total}. Preceding crop · {calendar.previous_crop}.")
                     render_timeline(calendar, selected_year, crops)
-    rotation = " → ".join(crops[plan.crop_at(offset)].name for offset in range(len(plan.crops)))
-    covers = "; ".join(
-        f"{recipe.name} after {crops[plan.crop_at(offset)].name} (rotation year {offset + 1})"
-        for offset in range(len(plan.crops)) if (recipe := plan.recipe_at(offset, recipes))
-    )
+    rotation, covers = describe_plan(plan, catalog)
     return [
-        {"Plan": slot + 1, "Name": title, "Rotation": rotation, "Cover crops": covers or "None",
+        {"Plan": slot + 1, "Name": title, "Rotation": rotation, "Cover crops": "; ".join(covers) or "None",
          "Year": item.year, "Crop": item.crop, **summary_metrics(item, results[item.year]),
          "Calendar notes": " ".join(item.notes)}
         for item in calendar.years
