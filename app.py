@@ -135,6 +135,9 @@ def explore_weather(county, cell, weather):
 st.set_page_config(page_title="RotationLab", layout="wide")
 masthead()
 county = show_location_picker()
+if county is None:
+    st.info("The pin is on the map. Choose a U.S. county or research site to explore the bundled weather and rotation data.")
+    st.stop()
 iowa = county == BOONE_COUNTY
 cell = grid_cell(*coordinates(county))
 try:

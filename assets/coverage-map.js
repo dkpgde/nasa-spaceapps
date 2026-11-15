@@ -1,22 +1,58 @@
-const { Deck, GeoJsonLayer, PolygonLayer, IconLayer, MapView, _GlobeView } = deckLibrary;
+const { Deck, GeoJsonLayer, PolygonLayer, IconLayer, TileLayer, BitmapLayer, MapView, _GlobeView } = deckLibrary;
 const cameras = new Map();
+let displayedSearch = 0;
 
 export default function ({ parentElement, data, setTriggerValue }) {
     const frame = parentElement.querySelector(".map-frame");
-    const { region, countries, counties, sites, active, camera, siteZoom } = data;
+    const controls = parentElement.querySelector(".map-controls");
+    const status = parentElement.querySelector(".map-status");
+    const attribution = parentElement.querySelector(".map-attribution");
+    const { region, countries, counties, sites, active, camera, siteZoom, imagery, search, revision } = data;
+    const visibleSites = search ? sites.filter(({ position }) => (
+        Math.hypot(position[0] - search.position[0], position[1] - search.position[1]) > .0003
+    )) : sites;
+    const remembered = cameras.get(region);
+    if (remembered?.revision !== revision) cameras.set(region, { revision, viewState: camera });
     const View = region === "World" ? _GlobeView : MapView;
     const pinSize = region === "World" ? 20 : 34;
     let hoveringPin = false;
     let pinFlight;
+    let imageryReady = false;
+    attribution.hidden = !imagery;
+    frame.dataset.imagery = imagery ? "loading" : "off";
+    status.hidden = !imagery;
+    status.textContent = imagery ? "Loading satellite imagery…" : "";
     const polygonStyle = {
         getPolygon: row => row.polygon,
         lineWidthUnits: "pixels",
         wrapLongitude: region === "Alaska",
     };
+    const basemap = imagery && new TileLayer({
+        id: "satellite-imagery", data: imagery,
+        minZoom: 0, maxZoom: 19, tileSize: 256,
+        onTileLoad: tile => {
+            if (!tile.content) return;
+            imageryReady = true;
+            frame.dataset.imagery = "ready";
+            status.hidden = true;
+        },
+        onTileError: () => {
+            if (imageryReady) return;
+            frame.dataset.imagery = "unavailable";
+            status.textContent = "Satellite imagery is unavailable. Weather coverage works offline.";
+            status.hidden = false;
+        },
+        renderSubLayers: props => {
+            const { west, south, east, north } = props.tile.bbox;
+            return new BitmapLayer(props, {
+                data: null, image: props.data, bounds: [west, south, east, north],
+            });
+        },
+    });
     const map = new Deck({
         parent: frame,
-        views: [new View({ controller: { dragRotate: false, doubleClickZoom: false } })],
-        viewState: cameras.get(region) ?? camera,
+        views: [new View({ repeat: Boolean(imagery), controller: { dragRotate: false, doubleClickZoom: true } })],
+        viewState: cameras.get(region).viewState,
         onViewStateChange: ({ viewState }) => {
             setCamera(viewState);
             const county = stopPinFlight();
@@ -30,19 +66,26 @@ export default function ({ parentElement, data, setTriggerValue }) {
                 getFillColor: feature => feature.properties.fill,
                 getLineColor: [171, 189, 176], getLineWidth: .5, lineWidthUnits: "pixels",
             }),
+            basemap,
             new PolygonLayer({
                 ...polygonStyle, id: "counties", data: counties, pickable: true, autoHighlight: true,
-                getFillColor: row => row.fill, getLineColor: [120, 152, 170], getLineWidth: .45,
+                getFillColor: row => imagery ? [0, 0, 0, 0] : row.fill,
+                getLineColor: imagery ? [222, 240, 228, 105] : [120, 152, 170], getLineWidth: .45,
             }),
             new PolygonLayer({
                 ...polygonStyle, id: "selected-county", data: counties.filter(row => row.county === active),
-                filled: false, getLineColor: [54, 92, 75], getLineWidth: 2,
+                filled: false, getLineColor: imagery ? [226, 243, 218, 180] : [54, 92, 75], getLineWidth: 2,
             }),
             new IconLayer({
-                id: "crop-sites", data: sites, pickable: true,
+                id: "crop-sites", data: visibleSites, pickable: true,
                 getPosition: site => site.position, getIcon: site => site.icon,
                 getSize: site => site.county === active ? pinSize * 1.35 : pinSize,
                 sizeUnits: "pixels",
+            }),
+            search && new IconLayer({
+                id: "search-result", data: [search], pickable: true,
+                getPosition: point => point.position, getIcon: point => point.icon,
+                getSize: 39, sizeUnits: "pixels",
             }),
         ],
         getTooltip: ({ object }) => object?.tooltip ? { text: object.tooltip } : null,
@@ -62,7 +105,7 @@ export default function ({ parentElement, data, setTriggerValue }) {
     });
 
     function focusSite({ position: [longitude, latitude], county }) {
-        const current = cameras.get(region) ?? camera;
+        const current = cameras.get(region).viewState;
         const zoom = Math.max(current.zoom, siteZoom);
         const delta = longitude - current.longitude;
         const longitudeDelta = delta - 360 * Math.round(delta / 360);
@@ -108,11 +151,32 @@ export default function ({ parentElement, data, setTriggerValue }) {
 
     function setCamera(viewState) {
         // Keep the camera position when Streamlit reruns after a selection.
-        cameras.set(region, viewState);
+        cameras.set(region, { revision, viewState });
         map.setProps({ viewState });
     }
 
+    function useControl(event) {
+        const zoom = event.target.dataset.zoom;
+        if (zoom === undefined && !event.target.hasAttribute("data-recenter")) return;
+        const county = stopPinFlight();
+        const current = cameras.get(region).viewState;
+        const target = zoom === undefined ? camera : {
+            ...current,
+            zoom: Math.max(camera.minZoom, Math.min(camera.maxZoom, current.zoom + Number(zoom))),
+        };
+        setCamera(target);
+        if (county) setTriggerValue("picked", county);
+    }
+    controls.addEventListener("click", useControl);
+    let revealFrame;
+    if (search && revision > displayedSearch) {
+        displayedSearch = revision;
+        revealFrame = requestAnimationFrame(() => frame.scrollIntoView({ block: "center", behavior: "smooth" }));
+    }
+
     return () => {
+        if (revealFrame) cancelAnimationFrame(revealFrame);
+        controls.removeEventListener("click", useControl);
         stopPinFlight();
         map.finalize();
     };
