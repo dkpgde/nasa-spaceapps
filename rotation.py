@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from catalog import CROPS, RECIPES, RYE_SPRING, Recipe, Season
+from catalog import CROPS, RECIPES, RYE_SPRING, Crop, Recipe, Season
 
 
 DAY = timedelta(days=1)
@@ -36,10 +36,10 @@ class Plan:
     def crop_at(self, offset: int) -> str:
         return self.crops[(self.start + offset) % len(self.crops)]
 
-    def recipe_at(self, offset: int) -> Recipe | None:
+    def recipe_at(self, offset: int, recipes=RECIPES) -> Recipe | None:
         phase = (self.start + offset) % len(self.crops)
         if self.covers[phase]:
-            return RECIPES.get((self.crop_at(offset), self.crop_at(offset + 1)))
+            return recipes.get((self.crop_at(offset), self.crop_at(offset + 1)))
         return None
 
 
@@ -74,6 +74,7 @@ class CropYear:
     sensitive: Event | None
     notes: tuple[str, ...]
     cover_unknown: bool = False
+    planting_available: bool = True
 
 
 @dataclass(frozen=True)
@@ -82,10 +83,11 @@ class Calendar:
     previous_crop: str
     years: tuple[CropYear, ...]
     sources: tuple[tuple[str, str], ...]
+    next_planting: tuple[Event, ...] = ()
 
     def timeline(self):
-        for year in self.years:
-            for event in year.events:
+        for events in (*(year.events for year in self.years), self.next_planting):
+            for event in events:
                 if dates := event.dates.overlap(self.span):
                     yield Event(event.label, event.kind, dates)
 
@@ -96,7 +98,18 @@ def termination_window(year: int, planting: Dates, gap: int) -> Dates:
     return Dates(date(year, 3, 15), planting.end - DAY * gap)
 
 
-def expand(plan: Plan, span: Dates, history: Dates | None = None) -> Calendar:
+def fall_planting(crop: Crop, previous: Crop, harvest_year: int):
+    window = dated(crop.planting, harvest_year - 1)
+    preceding_harvest = dated(previous.harvest, harvest_year - 1).midpoint()
+    start = max(window.start, preceding_harvest + DAY)
+    if start > window.end:
+        return Event(f"{crop.name} planting", "Planting", window), None
+    planting = Dates(start, window.end)
+    return (Event(f"{crop.name} planting", "Planting", planting),
+            Event(crop.name, "Living cover", Dates(planting.midpoint() + 7 * DAY, date(harvest_year, *crop.living_end))))
+
+
+def expand(plan: Plan, span: Dates, history: Dates | None = None, *, crops=CROPS, recipes=RECIPES) -> Calendar:
     """Include the prior phase for carryover and clip displayed events to span."""
     history = span if history is None else history
     sources = set()
@@ -104,19 +117,31 @@ def expand(plan: Plan, span: Dates, history: Dates | None = None) -> Calendar:
     for offset, year in enumerate(range(span.start.year, span.end.year + 1)):
         key = plan.crop_at(offset)
         previous, following = plan.crop_at(offset - 1), plan.crop_at(offset + 1)
-        crop = CROPS[key]
+        crop = crops[key]
         sources.update(crop.sources)
         events, notes = [], []
         planting = termination = sensitive = None
         gap = None
         cover_unknown = False
+        planting_available = True
         harvest = dated(crop.harvest, year)
 
-        if crop.planting:
+        if crop.fall_planted:
+            planting, cover = fall_planting(crop, crops[previous], year)
+            if cover is None:
+                planting_available = False
+                cover_unknown = True
+                notes.append(f"{crops[previous].name} midpoint harvest falls after the preceding fall planting window.")
+            else:
+                events.extend((planting, cover))
+                if history.start > cover.dates.start:
+                    cover_unknown = True
+                    notes.append("Fall establishment is outside the available weather record.")
+        elif crop.planting:
             planting = Event(f"{crop.name} planting", "Planting", dated(crop.planting, year))
             events.append(planting)
             emergence = planting.dates.midpoint() + 7 * DAY
-            label = CROPS["oats"].name if crop.undersown else crop.name
+            label = crops["oats"].name if crop.undersown else crop.name
             events.append(Event(label, "Living cover", Dates(emergence, date(year, *crop.living_end))))
         if crop.sensitive:
             sensitive = Event(crop.stage, "Sensitive stage", dated(crop.sensitive, year))
@@ -130,11 +155,11 @@ def expand(plan: Plan, span: Dates, history: Dates | None = None) -> Calendar:
                 notes.append("Alfalfa carryover requires an established hay phase. Its exit timing for this transition is unavailable.")
 
         if previous == "clover":
-            sources.update(CROPS[previous].sources)
-            if history.start > date(year - 1, *CROPS[previous].planting[0]):
+            sources.update(crops[previous].sources)
+            if history.start > date(year - 1, *crops[previous].planting[0]):
                 cover_unknown = True
                 notes.append("Initial red clover carryover unavailable without the preceding establishment season.")
-            elif planting:
+            elif planting and not crop.fall_planted:
                 gap = 1  # Demo spring-incorporation plan before the next planting.
                 dates = termination_window(year, planting.dates, gap)
                 termination = Event("Red clover incorporation", "Termination", dates)
@@ -156,7 +181,7 @@ def expand(plan: Plan, span: Dates, history: Dates | None = None) -> Calendar:
                 preceding_hay_years += 1
             established = plan.crop_at(offset - 1 - preceding_hay_years) == "oat_alfalfa"
             established_year = year - 1 - preceding_hay_years
-            if established and history.start <= date(established_year, *CROPS["oats"].planting[0]):
+            if established and history.start <= date(established_year, *crops["oats"].planting[0]):
                 end = date(year, 12, 31)
                 if following != "hay":
                     dates = dated(((11, 25), (12, 5)), year)
@@ -168,10 +193,10 @@ def expand(plan: Plan, span: Dates, history: Dates | None = None) -> Calendar:
                 cover_unknown = True
                 notes.append("Established hay cover unavailable without a supported oats-with-alfalfa establishment phase.")
 
-        if recipe := plan.recipe_at(offset - 1):
+        if recipe := plan.recipe_at(offset - 1, recipes):
             if recipe.minimum_gap is not None:
                 sources.update((recipe.source, RYE_SPRING))
-                prior_harvest = dated(CROPS[previous].harvest, year - 1)
+                prior_harvest = dated(crops[previous].harvest, year - 1)
                 seed = prior_harvest.midpoint() + DAY
                 if history.start > seed or seed > date(year - 1, *recipe.seed_by):
                     cover_unknown = True
@@ -184,7 +209,7 @@ def expand(plan: Plan, span: Dates, history: Dates | None = None) -> Calendar:
                     events.append(Event("Cereal rye carryover", "Living cover",
                                         Dates(date(year, 1, 1), end - DAY)))
 
-        if recipe := plan.recipe_at(offset):
+        if recipe := plan.recipe_at(offset, recipes):
             sources.add(recipe.source)
             deadline = date(year, *recipe.seed_by)
             after_harvest = harvest.start + DAY
@@ -215,6 +240,13 @@ def expand(plan: Plan, span: Dates, history: Dates | None = None) -> Calendar:
             events.append(termination)
         years.append(CropYear(
             year, crop.name, tuple(events), planting, termination, gap, sensitive,
-            tuple(notes), cover_unknown,
+            tuple(notes), cover_unknown, planting_available,
         ))
-    return Calendar(span, CROPS[plan.crop_at(-1)].name, tuple(years), tuple(sorted(sources)))
+    next_planting = ()
+    following = crops[plan.crop_at(len(years))]
+    if following.fall_planted:
+        planting, cover = fall_planting(following, crops[plan.crop_at(len(years) - 1)], span.end.year + 1)
+        if cover:
+            sources.update(following.sources)
+            next_planting = (planting, cover)
+    return Calendar(span, crops[plan.crop_at(-1)].name, tuple(years), tuple(sorted(sources)), next_planting)

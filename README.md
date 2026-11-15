@@ -1,6 +1,6 @@
 # RotationLab
 
-A Streamlit dashboard for comparing crop rotations in Boone County, Iowa. See [ROTATIONLAB.md](ROTATIONLAB.md) for the rotation presets, weather scenarios, and data sources.
+A Streamlit dashboard for exploring U.S. weather and comparing crop rotations at Marsden Farm in Iowa and the Eastern Nebraska Research and Extension Center near Mead. See [ROTATIONLAB.md](ROTATIONLAB.md) for the original Marsden presets and rainfall methods.
 
 ## Run locally
 
@@ -12,9 +12,15 @@ python3 -m venv .venv
 .venv/bin/python -m streamlit run app.py
 ```
 
-The dashboard runs offline with bundled weather. **Custom years** opens on 2010–2013 and accepts any starting year from 1991 through 2028. Recorded NASA POWER weather runs through November 12, 2026. An ECMWF seasonal forecast fills the rest of 2026, and NASA climate projections cover 2027–2031.
+The map runs offline and opens on an interactive globe. Drag to rotate, scroll to zoom in, or use the Lower 48, Alaska and Hawaii views to jump to those regions. Blue shading marks daily NASA POWER coverage for 3,143 counties and county equivalents across all 50 states and D.C. Click a county to view and download its weather series. Each county uses the native 0.5° × 0.625° MERRA-2 grid point closest to its Census reference coordinate. The two crop sites use their research-area coordinates. [Natural Earth world boundaries](https://www.naturalearthdata.com/downloads/110m-cultural-vectors/110m-admin-0-countries/) · [Census 2020 county boundaries and reference points](https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/55).
 
-**Average**, **Wet Spring**, and **Dry Summer** use only complete historical years through 2025. **Future projections** offers four-year blocks starting in 2027 or 2028. Choose one year to inspect and expand **See dates, rules and sources** on a plan for the calculation details and calendar.
+The offline archive contains `PRECTOTCORR` and `T2M` in Local Solar Time from January 1981 through September 2026 at 1,906 distinct grid points. To update it, install `numcodecs` in the project virtual environment and run `python download_grid_weather.py`. The importer reads the primary [NASA POWER Analysis Ready Datastore](https://power.larc.nasa.gov/docs/services/aws/). Normal app use needs only the packages in `requirements.txt`.
+
+Green pins open the crop-rotation comparisons. **Marsden Farm** offers 10 crop and forage choices, including winter wheat, winter grain rye and buckwheat. **Mead ENREC** offers 11 choices, including grain sorghum, field pea, proso millet and sunflower, with published corn–soybean, sorghum–soybean and continuous corn examples. The sources shown on each crop calendar distinguish statewide date ranges from local trial evidence. A crop without a sensitive-stage window still has planting and harvest data. Fall-planted grains are shown in their harvest year. [Iowa USDA dates](https://www.nass.usda.gov/Publications/Todays_Reports/reports/fcdate10.pdf#page=39) · [Nebraska USDA dates](https://esmis.nal.usda.gov/sites/default/release-files/vm40xr56k/dv13zw65p/w9505297d/planting-10-29-2010.pdf#page=42) · [Mead rotation trial](https://cropwatch.unl.edu/2021/more-diverse-crop-rotations-improve-yield-yield-stability-and-soil-health/).
+
+**Custom years** opens on 2010–2013 and accepts starting years from 1981 through 2028 in Iowa and 1981 through 2022 in Nebraska. At Marsden, NASA POWER weather runs through November 12, 2026. An ECMWF seasonal forecast fills the rest of 2026, and NASA climate projections cover 2027–2031.
+
+**Average**, **Wet Spring**, and **Dry Summer** use only complete historical years through 2025. Iowa's preset baseline starts in 1991 and Mead's starts in 1981. **Future projections** offers four-year blocks at Marsden starting in 2027 or 2028. Choose one year to inspect and expand **See dates, rules and sources** on a plan for the calculation details and calendar.
 
 Each card shows its four-year crop sequence and highlights the selected year. The three main results are heavy rain without living cover, days passing planting checks, and the longest dry spell during sensitive growth. Planting checks combine low-rain windows with any required wait after ending a cover crop; each planting date counts once. Established hay shows **Not needed** for planting. Download all four years as a CSV with the main results and the separate rainfall and termination checks. In the CSV, `N/A` means a check does not apply and `Unavailable` means required information is missing. **Restore starting plans** restores the three starting rotations while keeping the selected weather.
 

@@ -7,6 +7,7 @@ import pandas as pd
 import streamlit as st
 
 from projection import GRID, MODELS, PATHWAYS, PROJECTION_LABEL, SOURCE, load_projections
+from grid_weather import load_grid_weather
 from weather import FORECAST_LABEL, FORECAST_SOURCE, FORECAST_START, POWER_LABEL, load_weather
 
 
@@ -19,6 +20,11 @@ def cached_weather():
     return load_weather().assign(source=POWER_LABEL)
 
 
+@st.cache_data(max_entries=64)
+def cached_grid_weather(cell):
+    return load_grid_weather(cell)
+
+
 @st.cache_data
 def cached_projections():
     return load_projections()
@@ -26,8 +32,9 @@ def cached_projections():
 
 def choose_projection():
     model_column, pathway_column = st.columns(2)
-    model = model_column.selectbox("Climate model", MODELS)
-    pathway = pathway_column.selectbox("Emissions pathway", PATHWAYS, format_func=PATHWAYS.get)
+    model = model_column.selectbox("Climate model", MODELS, key="weather-choice-model")
+    pathway = pathway_column.selectbox("Emissions pathway", PATHWAYS, format_func=PATHWAYS.get,
+                                       key="weather-choice-pathway")
     label = f"{PROJECTION_LABEL} · {model} / {PATHWAYS[pathway]}"
     return cached_projections()[model, pathway].assign(source=label)
 
@@ -57,7 +64,7 @@ def masthead():
     st.html(f"<style>{css}</style>")
     with st.container(key="masthead"):
         st.title("RotationLab", anchor=False)
-        st.write("See how crop rotations change rain exposure and planting opportunities in Boone County, Iowa.")
+        st.write("Explore U.S. weather and compare crop rotations at research sites in Iowa and Nebraska.")
 
 
 def chart_style(chart):

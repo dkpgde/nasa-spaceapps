@@ -63,7 +63,9 @@ def runs(mask: pd.Series):
 def fieldwork(year: CropYear, rain: pd.Series) -> FieldworkResult:
     # The crop calendar provides the dates and displays its source citations.
     operations = tuple(
-        Operation(kind, event.label, year.year, kind, OperationCalendar(event.dates.start, event.dates.end, ""))
+        Operation(kind, event.label, year.year, kind,
+                  OperationCalendar(event.dates.start, event.dates.end, "")
+                  if kind != "planting" or year.planting_available else None)
         for kind, event in (("termination", year.termination), ("planting", year.planting))
         if event is not None
     )
@@ -82,7 +84,7 @@ def dry_spell(window: Dates, rain: pd.Series, span: Dates) -> DrySpell:
     return DrySpell(observed, observed == window and complete(period), longest)
 
 
-def analyze(calendar: Calendar, daily: pd.DataFrame) -> dict[int, YearResults]:
+def analyze(calendar: Calendar, daily: pd.DataFrame, *, operation_weather=None) -> dict[int, YearResults]:
     rain = rain_for(daily["precipitation_mm"], calendar.span)
     cover = [event.dates for event in calendar.timeline() if event.kind == "Living cover"]
     results = {}
@@ -97,5 +99,8 @@ def analyze(calendar: Calendar, daily: pd.DataFrame) -> dict[int, YearResults]:
                     outside.loc[pd.Timestamp(dates.start):pd.Timestamp(dates.end)] = False
             uncovered = tuple((day.date(), float(value)) for day, value in period[outside].items())
         exposure = dry_spell(year.sensitive.dates, rain, calendar.span) if year.sensitive else None
-        results[year.year] = YearResults(uncovered, fieldwork(year, rain), exposure)
+        operations_rain = rain
+        if operation_weather is not None and year.planting and year.planting.dates.start < calendar.span.start:
+            operations_rain = operation_weather["precipitation_mm"]
+        results[year.year] = YearResults(uncovered, fieldwork(year, operations_rain), exposure)
     return results

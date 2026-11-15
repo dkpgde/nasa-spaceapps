@@ -39,7 +39,7 @@ STAGE_DATES = (
     "https://nrcca.cals.cornell.edu/crop/CA1/CA0103.php",
 )
 OAT_STRESS = (
-    "Colorado State small-grain water use by growth stage",
+    "Colorado State crop water use by growth stage",
     "https://extension.colostate.edu/resource/crop-water-use-and-growth-stages/",
 )
 OAT_STAGE_DATES = (
@@ -70,6 +70,7 @@ class Crop:
     stage: str
     sources: tuple[tuple[str, str], ...]
     undersown: str | None = None
+    fall_planted: bool = False
 
 
 corn = Crop(
@@ -103,6 +104,21 @@ CROPS = {
     "hay": Crop(
         "Established alfalfa hay", None, ((5, 30), (9, 15)), (12, 31), None, "",
         (NASS, MARSDEN, MANAGEMENT),
+    ),
+    "winter_wheat": Crop(
+        "Winter wheat", ((9, 26), (10, 15)), ((7, 6), (7, 22)), (7, 1),
+        ((5, 20), (6, 15)), "Heading through early grain fill", (NASS, OAT_STRESS), fall_planted=True,
+    ),
+    "grain_rye": Crop(
+        "Winter rye (grain)", ((10, 11), (10, 16)), ((7, 9), (8, 6)), (7, 8),
+        ((5, 15), (6, 10)), "Heading through early grain fill",
+        (("Practical Farmers of Iowa grain rye trial", "https://practicalfarmers.org/resources/research-reports/cereal-rye-variety-trial-2025/"), OAT_STRESS),
+        fall_planted=True,
+    ),
+    "buckwheat": Crop(
+        "Buckwheat (grain)", ((6, 10), (7, 15)), ((8, 25), (9, 30)), (9, 8),
+        ((7, 12), (8, 5)), "Flowering and seed set",
+        (("Iowa State Extension buckwheat production guide", "https://www.extension.iastate.edu/alternativeag/buckwheat"),),
     ),
 }
 

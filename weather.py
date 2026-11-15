@@ -127,16 +127,18 @@ def seasonal_totals(daily: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(seasonal_rain).rename_axis("year")
 
 
-def select_scenario(name: str, daily: pd.DataFrame, *, start_year: int | None = None) -> WeatherScenario:
+def select_scenario(name: str, daily: pd.DataFrame, *, start_year: int | None = None,
+                    reference_period: tuple[int, int] = (FIRST_YEAR, LAST_YEAR)) -> WeatherScenario:
     """Select a four-year block from validated daily weather."""
     if name == "Typical":
         name = "Average"  # Accept the old name from existing callers.
     position, rule = SCENARIOS[name]
     totals = seasonal_totals(daily)
     # Presets and rainfall medians use complete historical years only.
-    reference_totals = totals.loc[FIRST_YEAR:LAST_YEAR]
+    reference_first, reference_last = reference_period
+    reference_totals = totals.loc[reference_first:reference_last]
     eligible = reference_totals.loc[
-        FIRST_YEAR + position - 1 : LAST_YEAR - (BLOCK_YEARS - position)
+        reference_first + position - 1 : reference_last - (BLOCK_YEARS - position)
     ]
     if name == CUSTOM_YEARS:
         earliest = daily.index[0].year
@@ -164,6 +166,7 @@ def select_scenario(name: str, daily: pd.DataFrame, *, start_year: int | None = 
         daily=daily.loc[f"{first}-01-01":f"{last}-12-31"].copy(),
         seasonal_totals=totals.loc[first:last].copy(),
         historical_totals=reference_totals,
+        reference_period=reference_period,
     )
 
 

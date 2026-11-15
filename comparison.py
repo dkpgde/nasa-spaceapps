@@ -1,5 +1,6 @@
 """Streamlit editor, timeline and analysis for each comparison slot."""
 
+from dataclasses import dataclass
 from datetime import date
 from html import escape
 
@@ -10,11 +11,13 @@ import streamlit as st
 from catalog import CROPS, RECIPES
 from dashboard import chart_style
 from fieldwork import LOW_RAIN_DAYS, MAX_DAILY_RAIN_MM
+from locations import BOONE_COUNTY, SAUNDERS_COUNTY
+import mead_catalog
 from rainfall import DRY_MM, HEAVY_MM, analyze
 from rotation import DAY, DEFAULTS, EXAMPLES, Dates, Plan, expand
 
 
-PLAN_TITLES = {
+IOWA_TITLES = {
     "Marsden · Corn → soybean": "Corn–soybean",
     "Corn → soybean with cereal rye": "Corn–soybean + rye",
     "Marsden · Corn → soybean → oats with red clover": "Three-year with clover",
@@ -22,33 +25,54 @@ PLAN_TITLES = {
 }
 
 
+@dataclass(frozen=True)
+class PlanCatalog:
+    crops: dict
+    recipes: dict
+    examples: dict
+    titles: dict
+    prefix: str = ""
+
+
+CATALOGS = {
+    BOONE_COUNTY: PlanCatalog(CROPS, RECIPES, EXAMPLES, IOWA_TITLES),
+    SAUNDERS_COUNTY: PlanCatalog(mead_catalog.CROPS, {}, mead_catalog.EXAMPLES, {
+        "Mead · Corn → soybean": "Corn–soybean",
+        "Mead · Sorghum → soybean": "Sorghum–soybean",
+        "Mead · Continuous corn": "Continuous corn",
+    }, "mead-"),
+}
+
+
 def date_range(dates: Dates) -> str:
     return f"{dates.start:%b %d} – {dates.end:%b %d}"
 
 
-def load_example(slot: int, prefix: str):
+def load_example(slot: int, prefix: str, catalog: PlanCatalog):
     example = st.session_state[f"{prefix}example"]
-    st.session_state[f"plan-{slot}"] = example, EXAMPLES[example]
+    st.session_state[f"{catalog.prefix}plan-{slot}"] = example, catalog.examples[example]
     # A browser rerun can still send the old widgets after the load callback.
     revision = f"{prefix}revision"
     st.session_state[revision] = st.session_state.get(revision, 0) + 1
 
 
-def reset_plans():
-    for slot, example in enumerate(DEFAULTS):
-        prefix = f"slot-{slot}-"
+def reset_plans(catalog: PlanCatalog):
+    for slot, example in enumerate(tuple(catalog.examples)[:len(DEFAULTS)]):
+        prefix = f"{catalog.prefix}slot-{slot}-"
         st.session_state[f"{prefix}example"] = example
-        load_example(slot, prefix)
+        load_example(slot, prefix, catalog)
 
 
-def edit_plan(slot: int) -> tuple[str, Plan]:
-    prefix = f"slot-{slot}-"
-    storage = f"plan-{slot}"
-    example, plan = st.session_state.get(storage, (DEFAULTS[slot], EXAMPLES[DEFAULTS[slot]]))
+def edit_plan(slot: int, catalog: PlanCatalog) -> tuple[str, Plan]:
+    prefix = f"{catalog.prefix}slot-{slot}-"
+    storage = f"{catalog.prefix}plan-{slot}"
+    options, recipes, examples = catalog.crops, catalog.recipes, catalog.examples
+    default = tuple(examples)[slot]
+    example, plan = st.session_state.get(storage, (default, examples[default]))
     with st.popover("Edit plan", width="stretch", key=f"{prefix}editor"):
         st.session_state.setdefault(f"{prefix}example", example)
-        st.selectbox("Start from an example", EXAMPLES, key=f"{prefix}example")
-        st.button("Use this example", key=f"{prefix}load", on_click=load_example, args=(slot, prefix))
+        st.selectbox("Start from an example", examples, key=f"{prefix}example")
+        st.button("Use this example", key=f"{prefix}load", on_click=load_example, args=(slot, prefix, catalog))
         st.divider()
         st.caption("Or change the crops below. Your edits apply immediately; the sequence repeats across four weather years.")
         revision = st.session_state.get(f"{prefix}revision", 0)
@@ -57,8 +81,8 @@ def edit_plan(slot: int) -> tuple[str, Plan]:
                              key=f"{prefix}count")
         crops = tuple(
             st.selectbox(
-                f"Crop in year {phase + 1}", CROPS, format_func=lambda crop: CROPS[crop].name,
-                index=list(CROPS).index(plan.crops[phase]) if phase < len(plan.crops) else 0,
+                f"Crop in year {phase + 1}", options, format_func=lambda crop: options[crop].name,
+                index=list(options).index(plan.crops[phase]) if phase < len(plan.crops) else 0,
                 key=f"{prefix}crop-{phase}",
             )
             for phase in range(count)
@@ -68,24 +92,24 @@ def edit_plan(slot: int) -> tuple[str, Plan]:
             st.session_state[start_key] = 0
         start = st.selectbox(
             "First crop in the comparison", range(count), index=plan.start if plan.start < count else 0,
-            format_func=lambda phase: f"{phase + 1} · {CROPS[crops[phase]].name}",
+            format_func=lambda phase: f"{phase + 1} · {options[crops[phase]].name}",
             key=start_key,
         )
         covers = []
         for phase, crop in enumerate(crops):
             following = crops[(phase + 1) % count]
-            recipe = RECIPES.get((crop, following))
+            recipe = recipes.get((crop, following))
             key = f"{prefix}cover-{phase}-{crop}-{following}"
             selected = phase < len(plan.covers) and plan.covers[phase]
             old_recipe = None
             if selected:
-                old_recipe = RECIPES.get((plan.crops[phase], plan.crops[(phase + 1) % len(plan.crops)]))
+                old_recipe = recipes.get((plan.crops[phase], plan.crops[(phase + 1) % len(plan.crops)]))
             if selected and recipe != old_recipe:
                 st.warning(f"Removed the cover after phase {phase + 1} because the transition changed.")
                 st.session_state.pop(key, None)
                 selected = False
             covers.append(st.checkbox(
-                f"{recipe.name} after year {phase + 1} → {CROPS[following].name}",
+                f"{recipe.name} after year {phase + 1} → {options[following].name}",
                 value=selected, key=key,
             ) if recipe else False)
         for phase in range(count, len(plan.crops)):
@@ -93,11 +117,11 @@ def edit_plan(slot: int) -> tuple[str, Plan]:
                 st.warning(f"Removed the cover after phase {phase + 1} with that crop year.")
     edited = Plan(crops, tuple(covers), start)
     st.session_state[storage] = example, edited
-    return (example if edited == EXAMPLES[example] else "Custom rotation"), edited
+    return (example if edited == examples[example] else "Custom rotation"), edited
 
 
-def render_timeline(calendar, selected_year):
-    cash_crops = {crop.name for crop in CROPS.values()}
+def render_timeline(calendar, selected_year, crops):
+    cash_crops = {crop.name for crop in crops.values()}
     rows = [
         {"Crop or operation": event.label, "Calendar": event.kind,
          "Start": event.dates.start, "End": event.dates.end,
@@ -210,16 +234,17 @@ def summary_metrics(year, result):
     }
 
 
-def show_plan(slot, daily, span, history, selected_year):
+def show_plan(slot, daily, span, history, selected_year, catalog, operation_weather):
     with st.container(border=True, key=f"plan_card_{slot}"):
         # Leave space above the editor so the summary reflects edits from this rerun.
         summary = st.container()
-        label, plan = edit_plan(slot)
-        calendar = expand(plan, span, history)
-        results = analyze(calendar, daily)
+        label, plan = edit_plan(slot, catalog)
+        crops, recipes = catalog.crops, catalog.recipes
+        calendar = expand(plan, span, history, crops=crops, recipes=recipes)
+        results = analyze(calendar, daily, operation_weather=operation_weather)
         year = calendar.years[selected_year - span.start.year]
         result = results[selected_year]
-        title = PLAN_TITLES.get(label, f"Custom plan {slot + 1}")
+        title = catalog.titles.get(label, f"Custom plan {slot + 1}")
         values = summary_metrics(year, result)
         planting_days = values["Days passing planting checks"]
         planting_hint = "More dates give you more planting options."
@@ -257,7 +282,7 @@ def show_plan(slot, daily, span, history, selected_year):
                 st.caption(" · ".join(year.notes))
             if year.sensitive is None:
                 st.caption("Dry-spell exposure is unavailable: no sensitive growth window is defined for this crop.")
-        with st.expander("See dates, rules and sources", key=f"plan-details-{slot}", on_change="rerun") as details:
+        with st.expander("See dates, rules and sources", key=f"{catalog.prefix}plan-details-{slot}", on_change="rerun") as details:
             if details.open:
                 checks_tab, calendar_tab = st.tabs(("How these results are calculated", "Crop calendar and sources"))
                 with checks_tab:
@@ -265,15 +290,15 @@ def show_plan(slot, daily, span, history, selected_year):
                     for note in year.notes:
                         st.caption(note)
                 with calendar_tab:
-                    st.write(" → ".join(CROPS[plan.crop_at(offset)].name for offset in range(len(plan.crops))))
+                    st.write(" → ".join(crops[plan.crop_at(offset)].name for offset in range(len(plan.crops))))
                     counts = [outcome.uncovered for outcome in results.values()]
                     total = "unavailable" if any(days is None for days in counts) else sum(len(days) for days in counts)
                     st.caption(f"Four-year uncovered heavy-rain days · {total}. Preceding crop · {calendar.previous_crop}.")
-                    render_timeline(calendar, selected_year)
-    rotation = " → ".join(CROPS[plan.crop_at(offset)].name for offset in range(len(plan.crops)))
+                    render_timeline(calendar, selected_year, crops)
+    rotation = " → ".join(crops[plan.crop_at(offset)].name for offset in range(len(plan.crops)))
     covers = "; ".join(
-        f"{recipe.name} after {CROPS[plan.crop_at(offset)].name} (rotation year {offset + 1})"
-        for offset in range(len(plan.crops)) if (recipe := plan.recipe_at(offset))
+        f"{recipe.name} after {crops[plan.crop_at(offset)].name} (rotation year {offset + 1})"
+        for offset in range(len(plan.crops)) if (recipe := plan.recipe_at(offset, recipes))
     )
     return [
         {"Plan": slot + 1, "Name": title, "Rotation": rotation, "Cover crops": covers or "None",
