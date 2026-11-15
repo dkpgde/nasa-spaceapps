@@ -22,15 +22,21 @@ WORLD_BOUNDARIES = Path(__file__).with_name("data") / "world-countries.geojson"
 WORLD_SOURCE = "https://www.naturalearthdata.com/downloads/110m-cultural-vectors/110m-admin-0-countries/"
 ASSETS = Path(__file__).with_name("assets")
 CROP_COLOR = "#365c4b"
-PIN = {
-    "url": "data:image/svg+xml," + quote(
+
+
+def pin_icon(fill, symbol):
+    svg = (
         '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 32 40">'
-        f'<path d="M16 38C13 33 2 22 2 16a14 14 0 1 1 28 0c0 6-11 17-14 22Z" '
-        f'fill="{CROP_COLOR}" stroke="white" stroke-width="2"/>'
-        '<circle cx="16" cy="16" r="4.5" fill="white"/></svg>'
-    ),
-    "width": 32, "height": 40, "anchorY": 38,
-}
+        '<path d="M16 38C13 33 2 22 2 16a14 14 0 1 1 28 0c0 6-11 17-14 22Z" '
+        f'fill="{fill}" stroke="white" stroke-width="2"/>{symbol}</svg>'
+    )
+    return {"url": "data:image/svg+xml," + quote(svg), "width": 32, "height": 40, "anchorY": 38}
+
+
+PIN = pin_icon(CROP_COLOR, '<circle cx="16" cy="16" r="4.5" fill="white"/>')
+SELECTED_PIN = pin_icon(
+    "#9c4700", '<path d="m10 16 4 4 8-8" fill="none" stroke="white" stroke-width="3"/>'
+)
 _DECK_LIBRARY = (ASSETS / "deck.gl-9.2.10.min.js").read_text(encoding="utf-8")
 _MAP_SCRIPT = (ASSETS / "coverage-map.js").read_text(encoding="utf-8")
 _COVERAGE_MAP = st.components.v2.component(
@@ -102,7 +108,8 @@ def show_location_picker():
     active = st.session_state.get(SELECTED_COUNTY, BOONE_COUNTY)
     counties = map_data(region, coverage()["cells"])
     crop_sites = [
-        {"county": county, "position": [lon, lat], "icon": PIN, "tooltip": f"{name} · Crop calendars"}
+        {"county": county, "position": [lon, lat], "icon": SELECTED_PIN if county == active else PIN,
+         "tooltip": f"{name} · Crop calendars"}
         for county, (name, lat, lon) in SITES.items()
     ] if region in ("World", "Lower 48") else []
     lat, lon, zoom = VIEWS[region]
@@ -110,7 +117,8 @@ def show_location_picker():
         _COVERAGE_MAP(
             key=map_key, on_picked_change=lambda: select_from_map(map_key), height=400,
             data={"region": region, "countries": world_boundaries(), "counties": counties, "sites": crop_sites,
-                  "active": active, "camera": {"latitude": lat, "longitude": lon, "zoom": zoom,
+                  "active": active, "siteZoom": 5.5,
+                  "camera": {"latitude": lat, "longitude": lon, "zoom": zoom,
                                                 "minZoom": -.4, "maxZoom": 10}},
         )
     map_slot.caption(f"Boundaries · [Natural Earth]({WORLD_SOURCE}) · [U.S. Census Bureau]({BOUNDARY_SOURCE})")
