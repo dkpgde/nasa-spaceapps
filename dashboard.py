@@ -6,9 +6,50 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from projection import GRID, MODELS, PATHWAYS, PROJECTION_LABEL, SOURCE, load_projections
+from weather import FORECAST_LABEL, FORECAST_SOURCE, FORECAST_START, POWER_LABEL, load_weather
+
 
 ASSETS = Path(__file__).with_name("assets")
 SPRING, SUMMER = "#456E8E", "#A26A2C"
+
+
+@st.cache_data
+def cached_weather():
+    return load_weather().assign(source=POWER_LABEL)
+
+
+@st.cache_data
+def cached_projections():
+    return load_projections()
+
+
+def choose_projection():
+    model_column, pathway_column = st.columns(2)
+    model = model_column.selectbox("Climate model", MODELS)
+    pathway = pathway_column.selectbox("Emissions pathway", PATHWAYS, format_func=PATHWAYS.get)
+    label = f"{PROJECTION_LABEL} · {model} / {PATHWAYS[pathway]}"
+    return cached_projections()[model, pathway].assign(source=label)
+
+
+def weather_sources_by_year(daily):
+    return daily.groupby(daily.index.year)["source"].agg(lambda sources: " + ".join(sources.unique()))
+
+
+def show_weather_sources(daily):
+    sources = daily["source"]
+    if sources.eq(POWER_LABEL).any():
+        st.markdown("[NASA POWER daily data](https://power.larc.nasa.gov/docs/services/api/temporal/daily/) · Local Solar Time")
+    if sources.eq(FORECAST_LABEL).any():
+        st.markdown(
+            f"[ECMWF SEAS5 via Open-Meteo]({FORECAST_SOURCE}) · {FORECAST_START} through 2026-12-31. "
+            "The control member provides one seasonal forecast sequence."
+        )
+    if sources.str.startswith(PROJECTION_LABEL).any():
+        st.markdown(
+            f"[NASA NEX-GDDP-CMIP6 v2.0]({SOURCE}) · 0.25° grid · UTC · {GRID[0]:.3f}°, {GRID[1]:.3f}°. "
+            "Daily sequences are simulations for stress testing."
+        )
 
 
 def masthead():

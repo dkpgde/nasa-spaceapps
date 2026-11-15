@@ -3,21 +3,17 @@ import streamlit as st
 
 from catalog import SOIL
 from comparison import reset_plans, show_plan
-from dashboard import masthead, monthly_chart, seasonal_chart
-from projection import FIRST_YEAR, GRID, LAST_YEAR, MODELS, PATHWAYS, SOURCE, load_projections
+from dashboard import (
+    cached_weather, choose_projection, masthead, monthly_chart, seasonal_chart, show_weather_sources,
+    weather_sources_by_year,
+)
+from projection import CUSTOM_START_YEARS, FIRST_YEAR, PROJECTION_START_YEARS, custom_weather
 from rainfall import RULES
 from rotation import Dates
-from weather import LATITUDE, LONGITUDE, SCENARIOS, load_weather, seasonal_totals, select_scenario
-
-
-@st.cache_data
-def cached_weather():
-    return load_weather()
-
-
-@st.cache_data
-def cached_projections():
-    return load_projections()
+from weather import (
+    BLOCK_YEARS, CUSTOM_YEARS, DEFAULT_START_YEAR, FORECAST_LABEL, FORECAST_START, LATITUDE,
+    LONGITUDE, POWER_LABEL, SCENARIOS, seasonal_totals, select_scenario,
+)
 
 
 def show_weather_details(daily, totals, year, historical):
@@ -41,19 +37,17 @@ def show_weather_details(daily, totals, year, historical):
         if historical:
             first, last = historical.reference_period
             st.write(historical.rule)
-            st.caption(
-                f"Reference period {first}–{last}. The reference year, {historical.reference_year}, "
-                f"is year {historical.reference_position} of the four-year block."
-            )
+            reference = f"Rainfall baseline {first}–{last}."
+            if historical.name != CUSTOM_YEARS:
+                reference += (
+                    f" The reference year, {historical.reference_year}, "
+                    f"is year {historical.reference_position} of the four-year block."
+                )
+            st.caption(reference)
             medians = historical.historical_totals.median()
             st.caption(f"Historical median rainfall · {medians['spring_mm']:.2f} mm in March–May "
                        f"and {medians['summer_mm']:.2f} mm in June–August.")
-            st.markdown(f"[NASA POWER daily data]({historical.source_url}) · MERRA-2 · Local Solar Time")
-        else:
-            st.markdown(
-                f"[NASA NEX-GDDP-CMIP6 v2.0]({SOURCE}) · 0.25° grid · UTC. Weather grid cell "
-                f"{GRID[0]:.3f}°, {GRID[1]:.3f}°. The preceding year supplies rotation carryover context."
-            )
+        show_weather_sources(daily)
         st.dataframe(
             daily.loc[str(year)].reset_index(),
             hide_index=True,
@@ -61,6 +55,7 @@ def show_weather_details(daily, totals, year, historical):
                 "date": st.column_config.DateColumn("Date", format="YYYY-MM-DD"),
                 "precipitation_mm": st.column_config.NumberColumn("Precipitation (mm)", format="%.2f"),
                 "temperature_c": st.column_config.NumberColumn("Mean air temperature (°C)", format="%.2f"),
+                "source": "Weather source",
             },
         )
 
@@ -101,20 +96,29 @@ projection = "Future projections"
 with st.container(border=True, key="comparison_controls"):
     weather_control, year_control, plan_control = st.columns([2, 1, 1])
     scenario = weather_control.selectbox("Weather to compare", (*SCENARIOS, projection),
-        help="Historical options use recorded NASA weather. Future projections use simulated weather. Every plan gets the same weather.")
-    projected = scenario == projection
+        help="Average, Wet Spring, and Dry Summer use historical weather through 2025. Custom years also includes forecast and projected weather.")
+    projection_only = scenario == projection
+    start_year = None
+    if scenario in (CUSTOM_YEARS, projection):
+        years = PROJECTION_START_YEARS if projection_only else CUSTOM_START_YEARS
+        start_year = weather_control.selectbox(
+            "Starting year", years, index=0 if projection_only else years.index(DEFAULT_START_YEAR),
+            key=f"start-{scenario}",
+            help="This year and the next three years are used for every plan.",
+        )
+        end_year = start_year + BLOCK_YEARS - 1
     try:
-        if projected:
-            model_control, pathway_control = st.columns(2)
-            model = model_control.selectbox("Climate model", MODELS)
-            pathway = pathway_control.selectbox("Emissions pathway", PATHWAYS, format_func=PATHWAYS.get)
-            weather = cached_projections()[model, pathway]
-            daily = weather.loc[str(FIRST_YEAR):str(LAST_YEAR)]
+        projected = choose_projection() if start_year is not None and end_year >= FIRST_YEAR else None
+        if projection_only:
+            weather = projected
+            daily = weather.loc[str(start_year):str(end_year)]
             totals = seasonal_totals(daily)
             default_year = 0
         else:
             weather = cached_weather()
-            historical = select_scenario(scenario, weather)
+            if scenario == CUSTOM_YEARS:
+                weather = custom_weather(weather, start_year, projected)
+            historical = select_scenario(scenario, weather, start_year=start_year)
             daily, totals = historical.daily, historical.seasonal_totals
             default_year = historical.reference_position - 1
     except (OSError, ValueError) as error:
@@ -122,16 +126,21 @@ with st.container(border=True, key="comparison_controls"):
         st.stop()
 
     year = year_control.selectbox("Year to inspect", totals.index.tolist(), index=default_year,
-        key=f"year-{scenario}", format_func=lambda y: f"Year {y - totals.index[0] + 1} · {y}",
+        key=f"year-{scenario}-{totals.index[0]}", format_func=lambda y: f"Year {y - totals.index[0] + 1} · {y}",
         help="Results below are for this one year. Crop sequences show the full four-year comparison.")
     slot_count = plan_control.selectbox("Plans to compare", (1, 2, 3), index=2)
     spring, summer = totals.loc[year, ["spring_mm", "summer_mm"]]
     st.caption(f"{year} rainfall · {spring:,.0f} mm in March–May · {summer:,.0f} mm in June–August")
-    if projected:
-        st.caption(f"Simulated weather for {FIRST_YEAR}–{LAST_YEAR}. This is a climate scenario, not a forecast for those dates.")
-    else:
+    sources_by_year = weather_sources_by_year(daily)
+    if sources_by_year.loc[year] != POWER_LABEL:
+        st.caption(f"{year} weather · {sources_by_year.loc[year]}")
+    if daily["source"].eq(FORECAST_LABEL).any():
+        st.caption(f"2026 includes a seasonal forecast from {FORECAST_START} through December 31.")
+    if projected is not None:
+        st.caption("NASA climate projections use simulated daily weather. Exact future weather is uncertain.")
+    if scenario not in (CUSTOM_YEARS, projection):
         st.caption({
-            "Typical": "Start here for a year with spring and summer rainfall near the historical middle.",
+            "Average": "Explore a recorded year with spring and summer rainfall near the historical median.",
             "Wet Spring": "Explore how a very wet spring affects planting and the timing of cover-crop removal.",
             "Dry Summer": "Explore how a very dry summer overlaps with each crop's sensitive growth stages.",
         }[scenario])
@@ -155,7 +164,7 @@ with st.container(key="comparison_actions"):
     download, reset = st.columns([2, 1])
     export = pd.DataFrame(comparison_rows)
     export.insert(0, "Weather scenario", scenario)
-    export.insert(1, "Weather source", f"{model} / {PATHWAYS[pathway]}" if projected else "NASA POWER / MERRA-2")
+    export.insert(1, "Weather source", export["Year"].map(sources_by_year))
     download.download_button(
         "Download all four years (CSV)", export.to_csv(index=False).encode("utf-8-sig"),
         f"rotationlab-{scenario.lower().replace(' ', '-')}-{span.start.year}-{span.end.year}.csv",

@@ -1,4 +1,4 @@
-"""Validated NASA POWER weather shared by the app and rotation analysis."""
+"""Validated daily weather shared by the app and rotation analysis."""
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -9,10 +9,17 @@ import pandas as pd
 
 
 CACHE = Path(__file__).with_name("data") / "boone-county-nasa-power.csv"
+RECENT_CACHE = CACHE.with_name("boone-county-weather-2026.csv")
 LOCATION = "Marsden Farm area, Boone County, Iowa"
 LATITUDE, LONGITUDE = 42.013628, -93.784149
-FIRST_YEAR, LAST_YEAR = 1991, 2020
+FIRST_YEAR, LAST_YEAR = 1991, 2025
 BLOCK_YEARS = 4
+DEFAULT_START_YEAR = 2010
+CUSTOM_YEARS = "Custom years"
+POWER_LABEL = "NASA POWER"
+FORECAST_LABEL = "ECMWF SEAS5 forecast"
+FORECAST_START = "2026-11-13"
+FORECAST_SOURCE = "https://open-meteo.com/en/docs/seasonal-forecast-api"
 TIME_STANDARD = "LST"
 SOURCE_URL = (
     "https://power.larc.nasa.gov/api/temporal/daily/point"
@@ -22,7 +29,8 @@ SOURCE_URL = (
 )
 
 SCENARIOS = {
-    "Typical": (
+    CUSTOM_YEARS: (1, "Use four consecutive years beginning with the selected year."),
+    "Average": (
         2,
         "Rank March–May and June–August rainfall separately across the reference "
         "period, averaging tied ranks. Choose the eligible year whose worse "
@@ -91,6 +99,23 @@ def load_weather(path: Path = CACHE) -> pd.DataFrame:
     return daily.rename(columns={"PRECTOTCORR": "precipitation_mm", "T2M": "temperature_c"})
 
 
+def load_2026_weather(path: Path = RECENT_CACHE) -> pd.DataFrame:
+    daily = pd.read_csv(path, index_col="date", parse_dates=["date"])
+    dates = pd.date_range("2026-01-01", "2026-12-31", name="date")
+    if list(daily.columns) != ["precipitation_mm", "temperature_c", "source"] or not daily.index.equals(dates):
+        raise ValueError("The 2026 weather cache must cover every date in order.")
+    values = daily[["precipitation_mm", "temperature_c"]].to_numpy(dtype=float)
+    expected_sources = np.where(dates < pd.Timestamp(FORECAST_START), POWER_LABEL, FORECAST_LABEL)
+    if (
+        not np.isfinite(values).all()
+        or (values == -999).any()
+        or daily["precipitation_mm"].lt(0).any()
+        or not np.array_equal(daily["source"], expected_sources)
+    ):
+        raise ValueError("The 2026 weather cache contains invalid values or sources.")
+    return daily
+
+
 def seasonal_totals(daily: pd.DataFrame) -> pd.DataFrame:
     rain = daily["precipitation_mm"]
     months = rain.index.month
@@ -102,15 +127,26 @@ def seasonal_totals(daily: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(seasonal_rain).rename_axis("year")
 
 
-def select_scenario(name: str, daily: pd.DataFrame) -> WeatherScenario:
-    """Select a four-year block from the validated records returned by load_weather."""
+def select_scenario(name: str, daily: pd.DataFrame, *, start_year: int | None = None) -> WeatherScenario:
+    """Select a four-year block from validated daily weather."""
+    if name == "Typical":
+        name = "Average"  # Accept the old name from existing callers.
     position, rule = SCENARIOS[name]
     totals = seasonal_totals(daily)
-    eligible = totals.loc[
+    # Presets and rainfall medians use complete historical years only.
+    reference_totals = totals.loc[FIRST_YEAR:LAST_YEAR]
+    eligible = reference_totals.loc[
         FIRST_YEAR + position - 1 : LAST_YEAR - (BLOCK_YEARS - position)
     ]
-    if name == "Typical":
-        distances = (totals.rank() - (len(totals) + 1) / 2).abs().loc[eligible.index]
+    if name == CUSTOM_YEARS:
+        earliest = daily.index[0].year
+        latest = daily.index[-1].year - BLOCK_YEARS + 1
+        if start_year is None or start_year not in range(earliest, latest + 1):
+            raise ValueError(f"Starting year must be between {earliest} and {latest}.")
+        year = start_year
+    elif name == "Average":
+        middle_rank = (len(reference_totals) + 1) / 2
+        distances = (reference_totals.rank() - middle_rank).abs().loc[eligible.index]
         year = min(eligible.index, key=lambda y: (distances.loc[y].max(), distances.loc[y].sum(), y))
     elif name == "Wet Spring":
         year = eligible["spring_mm"].idxmax()
@@ -127,7 +163,7 @@ def select_scenario(name: str, daily: pd.DataFrame) -> WeatherScenario:
         source_url=SOURCE_URL,
         daily=daily.loc[f"{first}-01-01":f"{last}-12-31"].copy(),
         seasonal_totals=totals.loc[first:last].copy(),
-        historical_totals=totals,
+        historical_totals=reference_totals,
     )
 
 

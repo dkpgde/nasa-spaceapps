@@ -12,7 +12,9 @@ python3 -m venv .venv
 .venv/bin/python -m streamlit run app.py
 ```
 
-The dashboard runs offline with bundled NASA weather. Choose weather and a year to inspect, then edit any of the comparison plans. Expand **See dates, rules and sources** on a plan for the calculation details and calendar.
+The dashboard runs offline with bundled weather. **Custom years** opens on 2010–2013 and accepts any starting year from 1991 through 2028. Recorded NASA POWER weather runs through November 12, 2026. An ECMWF seasonal forecast fills the rest of 2026, and NASA climate projections cover 2027–2031.
+
+**Average**, **Wet Spring**, and **Dry Summer** use only complete historical years through 2025. **Future projections** offers four-year blocks starting in 2027 or 2028. Choose one year to inspect and expand **See dates, rules and sources** on a plan for the calculation details and calendar.
 
 Each card shows its four-year crop sequence and highlights the selected year. The three main results are heavy rain without living cover, days passing planting checks, and the longest dry spell during sensitive growth. Planting checks combine low-rain windows with any required wait after ending a cover crop; each planting date counts once. Established hay shows **Not needed** for planting. Download all four years as a CSV with the main results and the separate rainfall and termination checks. In the CSV, `N/A` means a check does not apply and `Unavailable` means required information is missing. **Restore starting plans** restores the three starting rotations while keeping the selected weather.
 

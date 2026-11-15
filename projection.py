@@ -9,13 +9,19 @@ import numpy as np
 import pandas as pd
 import requests
 
-from weather import LATITUDE, LONGITUDE
+from weather import (
+    BLOCK_YEARS, FIRST_YEAR as HISTORICAL_FIRST_YEAR, LAST_YEAR as HISTORICAL_LAST_YEAR,
+    LATITUDE, LONGITUDE, load_2026_weather,
+)
 
 
 SOURCE = "https://www.nccs.nasa.gov/data-collections/nex-gddp-cmip6/"
 ARCHIVE = "https://ds.nccs.nasa.gov/thredds/ncss/grid/AMES/NEX/GDDP-CMIP6"
 CACHE = Path(__file__).with_name("data") / "boone-county-nasa-projections.csv"
-FIRST_YEAR, LAST_YEAR = 2027, 2030
+FIRST_YEAR, LAST_YEAR = 2027, 2031
+PROJECTION_LABEL = "NASA climate projection"
+CUSTOM_START_YEARS = range(HISTORICAL_FIRST_YEAR, LAST_YEAR - BLOCK_YEARS + 2)
+PROJECTION_START_YEARS = range(FIRST_YEAR, LAST_YEAR - BLOCK_YEARS + 2)
 GRID = (42.125, -93.875)
 MODELS = {"ACCESS-CM2": "gn", "MPI-ESM1-2-LR": "gn"}
 PATHWAYS = {"ssp245": "SSP2-4.5", "ssp370": "SSP3-7.0"}
@@ -24,6 +30,16 @@ VARIABLES = {
     "tas": ('tas[unit="K"]', "temperature_c", 1, -273.15),
 }
 DATES = pd.date_range(f"{FIRST_YEAR - 1}-01-01", f"{LAST_YEAR}-12-31", name="date")
+
+
+def custom_weather(historical: pd.DataFrame, start_year: int, projected: pd.DataFrame | None) -> pd.DataFrame:
+    if start_year + BLOCK_YEARS - 1 <= HISTORICAL_LAST_YEAR:
+        return historical
+    frames = [historical, load_2026_weather()]
+    if projected is not None:
+        # Skip the simulated 2026 carryover because this mode has a 2026 weather snapshot.
+        frames.append(projected.loc[str(FIRST_YEAR):])
+    return pd.concat(frames)
 
 
 def load_projections(path: Path = CACHE) -> dict[tuple[str, str], pd.DataFrame]:
